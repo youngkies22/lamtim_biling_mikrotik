@@ -463,6 +463,69 @@
     return new Intl.NumberFormat('id-ID').format(number);
   }
 </script>
+
+<script>
+  document.getElementById('btn-generate').addEventListener('click', async function() {
+  const btn = this;
+  const bulan = document.getElementById('filter-bulan').value;
+  const msgBox = document.getElementById('status-msg');
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="mdi mdi-loading mdi-spin me-1"></i>Memproses...';
+  if (msgBox) msgBox.innerHTML = '';
+
+  try {
+    const response = await fetch(`/tagihan/generate-tagihan-bulanan`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+      },
+      body: JSON.stringify({ bulan })
+    });
+
+    const data = await response.json();
+
+    if (msgBox) {
+      if (data.success) {
+        const { inserted = 0, skipped = 0, errors = [] } = data.data || {};
+
+        let html = `
+          <div class="alert alert-success border-0 shadow-sm py-2 px-3 mb-0">
+            <div class="fw-semibold mb-1">${data.message || '✅ Tagihan berhasil digenerate.'}</div>
+            <ul class="mb-0 small">
+              <li>Tagihan baru dibuat: <strong>${inserted}</strong></li>
+              <li>Dilewati (sudah ada): <strong>${skipped}</strong></li>
+              ${errors.length > 0
+                ? `<li class="text-danger">Error: ${errors.join(', ')}</li>`
+                : ''
+              }
+            </ul>
+          </div>
+        `;
+        msgBox.innerHTML = html;
+      } else {
+        msgBox.innerHTML = `
+          <div class="alert alert-danger border-0 shadow-sm py-2 px-3 mb-0">
+            ❌ ${data.message || 'Gagal membuat tagihan bulanan.'}
+          </div>
+        `;
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    if (msgBox)
+      msgBox.innerHTML = `
+        <div class="alert alert-warning border-0 shadow-sm py-2 px-3 mb-0">
+          ⚠️ Terjadi kesalahan koneksi ke server.
+        </div>
+      `;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="mdi mdi-cash-multiple me-1"></i>Generate Tagihan Bulan Ini';
+  }
+});
+</script>
 @endsection
 
 @section('content')
@@ -475,23 +538,35 @@
         <label for="filter-bulan" class="form-label fw-semibold text-muted mb-2">
           <i class="mdi mdi-filter-variant me-1"></i>Filter Periode
         </label>
-        <select id="filter-bulan" class="form-select form-select-sm">
-          <option value="">Semua Bulan</option>
-          <option value="1">Januari</option>
-          <option value="2">Februari</option>
-          <option value="3">Maret</option>
-          <option value="4">April</option>
-          <option value="5">Mei</option>
-          <option value="6">Juni</option>
-          <option value="7">Juli</option>
-          <option value="8">Agustus</option>
-          <option value="9">September</option>
-          <option value="10">Oktober</option>
-          <option value="11">November</option>
-          <option value="12">Desember</option>
-        </select>
+
+        <div class="d-flex align-items-center gap-2">
+          <select id="filter-bulan" class="form-select form-select-sm flex-grow-1">
+            <option value="">Semua Bulan</option>
+            <option value="1">Januari</option>
+            <option value="2">Februari</option>
+            <option value="3">Maret</option>
+            <option value="4">April</option>
+            <option value="5">Mei</option>
+            <option value="6">Juni</option>
+            <option value="7">Juli</option>
+            <option value="8">Agustus</option>
+            <option value="9">September</option>
+            <option value="10">Oktober</option>
+            <option value="11">November</option>
+            <option value="12">Desember</option>
+          </select>
+
+          <button id="btn-generate" class="btn btn-primary btn-sm">
+            <i class="mdi mdi-cash-multiple me-1"></i>Generate Tagihan Bulan Ini
+          </button>
+        </div>
+
+        <!-- Tambahkan ini -->
+        <div id="status-msg" class="mt-3 small"></div>
       </div>
     </div>
+
+
   </div>
 
   <!-- Summary Cards -->
