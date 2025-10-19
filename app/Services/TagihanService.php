@@ -395,6 +395,15 @@ class TagihanService
         ->addColumn('paket_nama', function ($row) {
           return optional($row->paket)->nama;
         })
+        ->addColumn('user_nama', function ($row) {
+          $user = optional($row->user);
+          $nama = $user->name;
+          $julukan = $user->julukan;
+
+          return $julukan
+            ? "{$nama} ({$julukan})"
+            : $nama;
+        })
         ->addColumn('paket_harga', function ($row) {
           return optional($row->paket)->price;
         })
@@ -425,7 +434,8 @@ class TagihanService
           'updated_at',
           'created_at',
           'paket_nama',
-          'paket_harga'
+          'paket_harga',
+          'user_nama'
         ])
         // ✅ Tambahkan summary data + unpaid summary ke response DataTables
         ->with([

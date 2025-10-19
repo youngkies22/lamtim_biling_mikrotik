@@ -45,6 +45,7 @@
         {
           "data": null,
           "render": function(data, type, row, meta) {
+            console.log(data);
             return meta.row + meta.settings._iDisplayStart + 1;
           }
         },
@@ -72,6 +73,7 @@
           }
         },
         { data: 'noTagihan'},
+        { data: 'user_nama'},
         { data: 'paket_nama'},
         { data: 'bulan'},
         { data: 'tahun'},
@@ -653,6 +655,7 @@
           <th>NO</th>
           <th>AKSI</th>
           <th>NO TAGIHAN</th>
+          <th>NAMA</th>
           <th>PAKET</th>
           <th>BULAN</th>
           <th>TAHUN</th>
