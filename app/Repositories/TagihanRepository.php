@@ -121,7 +121,7 @@ class TagihanRepository
       ->where('isActive', 1)
       ->with(['user_mikrotik:id,idUser,idPaket'])
       ->with(['user_mikrotik.paket:id,nama,price'])
-      ->get(['id', 'name', 'email', 'isActive']);
+      ->get(['id', 'name', 'isActive']);
 
     foreach ($users as $user) {
 
