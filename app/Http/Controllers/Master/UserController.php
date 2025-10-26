@@ -51,7 +51,7 @@ class UserController extends Controller
       'nama' => ['required', 'string', 'max:100'],
       'wa' => ['required', 'string', 'max:100'],
       'password' => ['nullable', 'string', 'min:8'], // jika dikosongkan, default di-handle di controller
-      'area' => ['required', 'numeric'],
+      'area' => ['required', 'string'],
       'status_isolir' => ['required', 'in:0,1'],
       'tgl_daftar' => ['required', 'date'],
       //'jatuh_tempo' => ['required', 'date', 'after_or_equal:tgl_daftar'],
@@ -80,7 +80,7 @@ class UserController extends Controller
       'idRole'        => 5,
     ];
     $arataArrayDetail = [
-      'idArea'        => $validated['area'],
+      'idArea'        => decrypt($validated['area']),
       'statusIsolir'  => $validated['status_isolir'],
       'tglDafatar'    => $validated['tgl_daftar'],
       'tglJatuhTempo' => $validated['jatuh_tempo'],
@@ -130,7 +130,7 @@ class UserController extends Controller
       'status_user' => ['required', 'in:0,1'],
       'wa' => ['required', 'string', 'max:100'],
       'password' => ['nullable', 'string', 'min:8'], // jika dikosongkan, default di-handle di controller
-      'area' => ['required', 'numeric'],
+      'area' => ['required', 'string'],
       'status_isolir' => ['required', 'in:0,1'],
       'tgl_daftar' => ['required', 'date'],
       //'jatuh_tempo' => ['required', 'date', 'after_or_equal:tgl_daftar'],
@@ -164,7 +164,7 @@ class UserController extends Controller
       $arataArray['password'] = bcrypt($validated['password']);
     }
     $arataArrayDetail = [
-      'idArea'        => $validated['area'],
+      'idArea'        => decrypt($validated['area']),
       'statusIsolir'  => $validated['status_isolir'],
       'tglDafatar'    => $validated['tgl_daftar'],
       'tglJatuhTempo' => $validated['jatuh_tempo'],
@@ -190,7 +190,7 @@ class UserController extends Controller
    */
   public function destroy(string $id)
   {
-    //
+    return $this->service->deleteByEncryptedId($id);
   }
 
   public function json(Request $request)

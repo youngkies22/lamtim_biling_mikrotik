@@ -29,6 +29,7 @@ Route::middleware(['auth'])->group(function () {
   require __DIR__ . '/modules/mapping.php'; //mapping
   require __DIR__ . '/modules/user.php'; // pelanggan
   require __DIR__ . '/modules/select.php';
+  require __DIR__ . '/modules/area.php';
 
   //tagihan transaksi
   require __DIR__ . '/modules/tagihan.php';

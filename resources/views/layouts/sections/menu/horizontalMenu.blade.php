@@ -80,6 +80,12 @@
               <div>LIHAT MAP</div>
             </a>
           </li>
+          <li class="menu-item">
+            <a href="{{ route('area.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-map-marker-outline mdi-20px"></i>
+              <div>AREA</div>
+            </a>
+          </li>
 
         </ul>
       </li>
