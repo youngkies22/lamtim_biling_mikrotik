@@ -169,8 +169,8 @@
 
       <div class="col-md-6">
         <div class="form-floating form-floating-outline">
-          <input value="https://maps.app.goo.gl/eFVYcRNsWBCaPUms5" type="url" name="google_map_url" class="form-control"
-            placeholder="https://..." />
+          <input type="url" name="google_map_url" class="form-control"
+            placeholder="https://maps.app.goo.gl/eFVYcRNsWBCaPUms5" />
           <label for="google_map_url">URL Google Map</label>
         </div>
       </div>
@@ -226,15 +226,14 @@
 
       <div class="col-12">
         <div class="form-floating form-floating-outline">
-          <textarea name="alamat" class="form-control" style="height: 100px;"
-            placeholder="Alamat lengkap">alamat</textarea>
+          <textarea name="alamat" class="form-control" style="height: 100px;" placeholder="Alamat lengkap"></textarea>
           <label for="alamat">Alamat</label>
         </div>
       </div>
       <div class="col-12">
         <div class="form-floating form-floating-outline">
           <textarea name="keterangan" class="form-control" style="height: 100px;"
-            placeholder="Keterangan Tambahan Jika ada ">keterangan</textarea>
+            placeholder="Keterangan Tambahan Jika ada "></textarea>
           <label for="alamat">Keterangan Tambahan</label>
         </div>
       </div>

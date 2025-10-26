@@ -85,19 +85,11 @@
             previous: '<i class="ri-arrow-left-s-line"></i>'
           }
         },
-         buttons: [
-          {
-              text: '<i class="mdi mdi-plus me-sm-1"></i> <span class="d-none d-sm-inline-block">Add</span>',
-              className: "create-new btn btn-primary waves-effect waves-light",
-              action: function () {
-                const offCanvasEl = document.getElementById("add-new-record");
-                const bsOffcanvas = new bootstrap.Offcanvas(offCanvasEl);
-
-                document.getElementById("form-add-new-record").reset(); // cukup ini
-                bsOffcanvas.show();
-              }
-            }
-          ],
+        buttons: [],
+        initComplete: function() {
+          // If dom still contains 'B' this will remove the (empty) buttons container so no Copy/HTML/PDF tampil
+          $('.dt-buttons').remove();
+        },
         responsive: {
           details: {
             display: $.fn.dataTable.Responsive.display.modal({
@@ -117,9 +109,96 @@
       });
       $("div.head-label").html('<h5 class="card-title mb-0">Data Pelanggan</h5>');
 
+      // Delete functionality
+      $(document).on('click', '.btn-delete', function(e) {
+        e.preventDefault();
+
+        const userId = $(this).data('id');
+        const userName = $(this).closest('tr').find('td:nth-child(4)').text(); // Get user name from table
+
+         Swal.fire({
+        title: "Yakin ingin menghapus?",
+        text: "Data yang dihapus tidak dapat dikembalikan!",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "YA, HAPUS!",
+        cancelButtonText: "BATAL",
+        buttonsStyling: false,
+        customClass: {
+          confirmButton: "btn btn-primary me-2",
+          cancelButton: "btn btn-outline-danger"
+        }
+      }).then((result) => {
+          if (result.isConfirmed) {
+            // Send delete request
+            $.ajax({
+              url: `${baseUrlRoute}/${userId}`,
+              type: 'DELETE',
+              data: {
+                _token: '{{ csrf_token() }}'
+              },
+
+              success: function(response) {
+                if (response.error === 'false' || response.error === false) {
+                  // Reload table
+                  table.ajax.reload();
+
+                  // Show success message
+                  Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: response.message || 'Data berhasil dihapus',
+                    showConfirmButton: false,
+                    timer: 2000,
+                    customClass: {
+                      popup: 'swal2-show',
+                      backdrop: 'swal2-backdrop-show',
+                      icon: 'swal2-icon-show'
+                    }
+                  });
+                } else {
+                  // Show error message
+                  Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: response.message || 'Gagal menghapus data',
+                    customClass: {
+                      confirmButton: 'btn btn-primary'
+                    },
+                    buttonsStyling: false
+                  });
+                }
+              },
+              error: function(xhr, status, error) {
+                let errorMessage = 'Terjadi kesalahan saat menghapus data';
+
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                  errorMessage = xhr.responseJSON.message;
+                } else if (xhr.status === 404) {
+                  errorMessage = 'Data tidak ditemukan';
+                } else if (xhr.status === 500) {
+                  errorMessage = 'Kesalahan server internal';
+                }
+
+                // Show error message
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Error!',
+                  text: errorMessage,
+                  customClass: {
+                    confirmButton: 'btn btn-primary'
+                  },
+                  buttonsStyling: false
+                });
+
+                console.error('Delete error:', error);
+                console.error('Response:', xhr.responseText);
+              }
+            });
+          }
+        });
+      });
     });
-
-
 
 </script>
 @endsection
