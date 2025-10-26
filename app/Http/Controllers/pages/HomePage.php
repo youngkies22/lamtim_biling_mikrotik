@@ -23,7 +23,7 @@ class HomePage extends Controller
     // Statistics for dashboard
     $stats = [
       // Total Users
-      'total_users' => User::where('isActive', 1)->count(),
+      'total_users' => User::where('isActive', 1)->where('idRole', 5)->count(),
 
       // Active Mikrotik Servers
       'active_mikrotik' => Lamtim_mikrotik::where('isActive', 1)->count(),
