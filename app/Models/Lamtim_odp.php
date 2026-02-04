@@ -9,6 +9,7 @@ class Lamtim_odp extends Model
   protected $fillable = [
     'idOlt',
     'idOdc',
+    'idOdp',
     'nama',
     'kode',
     'port',
@@ -24,5 +25,9 @@ class Lamtim_odp extends Model
   public function odc()
   {
     return $this->belongsTo(Lamtim_odc::class, 'idOdc', 'id');
+  }
+  public function parentOdp()
+  {
+    return $this->belongsTo(Lamtim_odp::class, 'idOdp', 'id');
   }
 }

@@ -31,12 +31,13 @@ class OdpController extends Controller
   {
     $validated = $request->validate([
       //'olt' => 'required|numeric',
-      'odc' => 'required|numeric',
+      'odc' => 'required_without:odp_parent|nullable|numeric',
       'nama' => 'required|string|max:255',
       'kode' => 'required|string|max:255|unique:lamtim_odcs,kode',
       'port' => 'required|numeric',
-      'portodc' => 'required|numeric',
+      'portodc' => 'required_with:odc|nullable|numeric',
       'sisa' => 'required|numeric',
+      'odp_parent' => 'nullable|numeric',
     ]);
 
     if ((int)$validated['sisa'] > (int)$validated['port']) {
@@ -45,11 +46,12 @@ class OdpController extends Controller
 
     $data = [
       //'idOlt' => $validated['olt'],
-      'idOdc' => $validated['odc'],
+      'idOdc' => !empty($validated['odc']) ? $validated['odc'] : null,
+      'idOdp' => !empty($validated['odp_parent']) ? (int) $validated['odp_parent'] : null,
       'nama' => $validated['nama'],
       'kode' => strtoupper($validated['kode']),
       'port' => (int) $validated['port'],
-      'portOdc' => (int) $validated['portodc'],
+      'portOdc' => !empty($validated['portodc']) ? (int) $validated['portodc'] : null,
       'portSisa' => (int) $validated['sisa'],
     ];
 
@@ -65,12 +67,13 @@ class OdpController extends Controller
   {
     $validated = $request->validate([
       //'olt' => 'required|string',
-      'odc' => 'required|string',
+      'odc' => 'required_without:odp_parent|nullable|string',
       'nama' => 'required|string|max:255',
       'kode' => 'required|string|max:255',
       'port' => 'required|numeric',
-      'portodc' => 'required|numeric',
+      'portodc' => 'required_with:odc|nullable|numeric',
       'sisa' => 'required|numeric',
+      'odp_parent' => 'nullable|numeric',
 
     ]);
     if ((int)$validated['sisa'] > (int)$validated['port']) {
@@ -78,11 +81,12 @@ class OdpController extends Controller
     }
     $data = [
       //'idOlt' => $validated['olt'],
-      'idOdc' => $validated['odc'],
+      'idOdc' => !empty($validated['odc']) ? $validated['odc'] : null,
+      'idOdp' => !empty($validated['odp_parent']) ? (int) $validated['odp_parent'] : null,
       'nama' => $validated['nama'],
       'kode' => strtoupper($validated['kode']),
       'port' => (int) $validated['port'],
-      'portOdc' => (int) $validated['portodc'],
+      'portOdc' => !empty($validated['portodc']) ? (int) $validated['portodc'] : null,
       'portSisa' => (int) $validated['port'],
 
     ];
@@ -102,6 +106,7 @@ class OdpController extends Controller
       'id',
       'idOlt',
       'idOdc',
+      'idOdp',
       'kode',
       'nama',
       'port',
@@ -117,7 +122,18 @@ class OdpController extends Controller
         return optional($row->olt)->nama;
       },
       'odc' => function ($row) {
-        return optional($row->odc)->nama;
+        // Hanya tampilkan ODC jika ada, jika ada ODP Parent kosongkan
+        if ($row->odc) {
+          return $row->odc->nama;
+        }
+        return '<span class="text-muted">-</span>';
+      },
+      'portOdc' => function ($row) {
+        // Hanya tampilkan portOdc jika ada, jika ada ODP Parent kosongkan
+        if ($row->portOdc) {
+          return $row->portOdc;
+        }
+        return '<span class="text-muted">-</span>';
       },
       'sfp' => function ($row) {
         return optional($row->odc)->portOlt;
@@ -128,8 +144,34 @@ class OdpController extends Controller
     ];
     $with = [
       'olt:id,nama',
-      'odc:id,nama,portOlt'
+      'odc:id,nama,portOlt',
+      'parentOdp:id,nama'
     ];
-    return $this->service->getDatatablesJson($columns, $callbacks, $with);
+    
+    // Ambil query dengan columns dan with menggunakan model langsung
+    $query = Lamtim_odp::select($columns)->with($with)->get();
+    
+    // Buat DataTable instance
+    $datatable = \Yajra\DataTables\Facades\DataTables::of($query);
+    
+    // Tambahkan callback untuk kolom yang ada
+    if (!empty($callbacks)) {
+      foreach ($callbacks as $column => $callback) {
+        $datatable->editColumn($column, $callback);
+      }
+    }
+    
+    // Tambahkan kolom virtual odpParent
+    $datatable->addColumn('odpParent', function ($row) {
+      if ($row->parentOdp) {
+        return '<span class="badge bg-label-primary">' . e($row->parentOdp->nama) . '</span>';
+      }
+      return '<span class="text-muted">-</span>';
+    });
+    
+    // Set raw columns agar HTML ter-render dengan benar
+    $datatable->rawColumns(['odc', 'portOdc', 'odpParent']);
+    
+    return $datatable->make(true);
   }
 }

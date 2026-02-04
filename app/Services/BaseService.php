@@ -133,6 +133,21 @@ class BaseService
         throw new \Exception("Secondary repository belum di-set");
       }
 
+      // Jika idOdc null (ODP Parent dipilih), skip pengecekan stok
+      if (empty($data['idOdc'])) {
+        // Jika ada idOdp, ambil idOlt dari ODP Parent
+        if (!empty($data['idOdp'])) {
+          $parentOdp = $this->repo->findById($data['idOdp']);
+          if ($parentOdp && $parentOdp->idOlt) {
+            $data['idOlt'] = $parentOdp->idOlt;
+          }
+        }
+        // Langsung simpan tanpa pengecekan stok
+        $this->repo->create($data);
+        DB::commit();
+        return LamtimResponse::accept('Data berhasil ditambahkan.');
+      }
+
       // Misal langsung ambil dari $data
       $stockId = $data['idOdc'];
       $stockColumn = 'portSisa';
@@ -218,9 +233,84 @@ class BaseService
         throw new ModelNotFoundException("Data dengan ID {$id} tidak ditemukan.");
       }
 
+      // Jika data lama punya idOdc tapi data baru tidak (berubah dari ODC ke ODP Parent)
+      // Kembalikan stok yang sudah dipakai
+      if (!empty($oldData->idOdc) && empty($data['idOdc'])) {
+        $oldStockId = $oldData->idOdc;
+        $oldStockData = $this->secondaryRepo->findById($oldStockId);
+        if ($oldStockData) {
+          $stockColumn = 'portSisa';
+          $stockUsed = 1;
+          $newStock = $oldStockData->$stockColumn + $stockUsed;
+          $this->secondaryRepo->updateStock($oldStockId, $stockColumn, $newStock);
+        }
+        // Jika ada idOdp, ambil idOlt dari ODP Parent
+        if (!empty($data['idOdp'])) {
+          $parentOdp = $this->repo->findById($data['idOdp']);
+          if ($parentOdp && $parentOdp->idOlt) {
+            $data['idOlt'] = $parentOdp->idOlt;
+          }
+        }
+        // Langsung update tanpa pengecekan stok
+        $this->repo->update($data, $id);
+        DB::commit();
+        return LamtimResponse::accept('Data berhasil diperbarui.');
+      }
+
+      // Jika idOdc null (ODP Parent dipilih), skip pengecekan stok
+      if (empty($data['idOdc'])) {
+        // Jika ada idOdp, ambil idOlt dari ODP Parent
+        if (!empty($data['idOdp'])) {
+          $parentOdp = $this->repo->findById($data['idOdp']);
+          if ($parentOdp && $parentOdp->idOlt) {
+            $data['idOlt'] = $parentOdp->idOlt;
+          }
+        }
+        // Langsung update tanpa pengecekan stok
+        $this->repo->update($data, $id);
+        DB::commit();
+        return LamtimResponse::accept('Data berhasil diperbarui.');
+      }
+
       $stockId = $data['idOdc'];
       $portOdc = $data['portOdc'];
 
+      // Jika data lama tidak punya idOdc tapi data baru punya (berubah dari ODP Parent ke ODC)
+      // Kurangi stok
+      if (empty($oldData->idOdc) && !empty($data['idOdc'])) {
+        // Cek port sudah digunakan atau belum
+        $cekPort = $this->repo->existsBy(['idOdc' => $stockId, 'portOdc' => $portOdc]);
+        if ($cekPort) {
+          throw new ModelNotFoundException("Port {$portOdc} sudah di gunakan.");
+        }
+        
+        // Ambil data stok sekarang
+        $stockData = $this->secondaryRepo->findById($stockId);
+        if (!$stockData) {
+          throw new ModelNotFoundException("Data stok dengan ID {$stockId} tidak ditemukan.");
+        }
+        
+        // Cek stok cukup
+        $stockColumn = 'portSisa';
+        $stockNeeded = 1;
+        if ($stockData->$stockColumn < $stockNeeded) {
+          throw ValidationException::withMessages([
+            $stockColumn => ["Port tidak cukup tersedia. Dibutuhkan: {$stockNeeded}, tersedia: {$stockData->$stockColumn}."]
+          ]);
+        }
+        
+        // Kurangi stok
+        $newStock = $stockData->$stockColumn - $stockNeeded;
+        $this->secondaryRepo->updateStock($stockId, $stockColumn, $newStock);
+        
+        // Tambahkan "idOlt" ke data update
+        $data = array_merge($data, ['idOlt' => $stockData->idOlt]);
+        
+        // Update data utama
+        $this->repo->update($data, $id);
+        DB::commit();
+        return LamtimResponse::accept('Data berhasil diperbarui.');
+      }
 
       // Ambil data stok sekarang
       $stockData = $this->secondaryRepo->findById($stockId);
@@ -228,14 +318,36 @@ class BaseService
         throw new ModelNotFoundException("Data stok dengan ID {$stockId} tidak ditemukan.");
       }
 
+      // Jika berpindah dari ODC ke ODC lain, kembalikan stok ODC lama dan kurangi stok ODC baru
       if ($oldData->idOdc != $stockId) {
         $cekPort = $this->repo->existsBy(['idOdc' => $stockId, 'portOdc' => $portOdc]);
         if ($cekPort) {
           throw new ModelNotFoundException("Port {$portOdc} sudah di gunakan.");
         }
+        
+        // Kembalikan stok ODC lama
+        if (!empty($oldData->idOdc)) {
+          $oldStockData = $this->secondaryRepo->findById($oldData->idOdc);
+          if ($oldStockData) {
+            $stockColumn = 'portSisa';
+            $stockUsed = 1;
+            $newStock = $oldStockData->$stockColumn + $stockUsed;
+            $this->secondaryRepo->updateStock($oldData->idOdc, $stockColumn, $newStock);
+          }
+        }
+        
+        // Kurangi stok ODC baru
+        $stockColumn = 'portSisa';
+        $stockNeeded = 1;
+        if ($stockData->$stockColumn < $stockNeeded) {
+          throw ValidationException::withMessages([
+            $stockColumn => ["Port tidak cukup tersedia. Dibutuhkan: {$stockNeeded}, tersedia: {$stockData->$stockColumn}."]
+          ]);
+        }
+        
+        $newStock = $stockData->$stockColumn - $stockNeeded;
+        $this->secondaryRepo->updateStock($stockId, $stockColumn, $newStock);
       }
-
-
 
       // Tambahkan "idOlt" ke data update
       $data = array_merge($data, ['idOlt' => $stockData->idOlt]);
@@ -297,20 +409,23 @@ class BaseService
         throw new ModelNotFoundException("Data dengan ID {$id} tidak ditemukan.");
       }
 
-      // Ambil stok yang dipakai pada data utama (misal portOdc)
-      $stockUsed = 1;
-      $stockId = $data->idOdc;
-      $stockColumn = 'portSisa';
+      // Jika idOdc tidak null, kembalikan stok
+      if (!empty($data->idOdc)) {
+        // Ambil stok yang dipakai pada data utama (misal portOdc)
+        $stockUsed = 1;
+        $stockId = $data->idOdc;
+        $stockColumn = 'portSisa';
 
-      // Ambil data stok saat ini
-      $stockData = $this->secondaryRepo->findById($stockId);
-      if (!$stockData) {
-        throw new ModelNotFoundException("Data stok dengan ID {$stockId} tidak ditemukan.");
+        // Ambil data stok saat ini
+        $stockData = $this->secondaryRepo->findById($stockId);
+        if (!$stockData) {
+          throw new ModelNotFoundException("Data stok dengan ID {$stockId} tidak ditemukan.");
+        }
+
+        // Tambahkan kembali stok yang dipakai pada data utama
+        $newStock = $stockData->$stockColumn + $stockUsed;
+        $this->secondaryRepo->updateStock($stockId, $stockColumn, $newStock);
       }
-
-      // Tambahkan kembali stok yang dipakai pada data utama
-      $newStock = $stockData->$stockColumn + $stockUsed;
-      $this->secondaryRepo->updateStock($stockId, $stockColumn, $newStock);
 
       // Hapus data utama
       $deleted = $this->repo->deleteById($id);

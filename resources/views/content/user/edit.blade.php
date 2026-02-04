@@ -125,9 +125,12 @@
       <div class="col-md-6">
         <div class="form-floating form-floating-outline">
           <select name="area" id="area-select" class="form-select" required>
-            <option value="" disabled selected>Pilih Area</option>
-            <option {{ $query->user_detail?->statusIsolir == 1 ? 'selected' : '' }} value="1">Iya</option>
-            <option {{ $query->user_detail?->statusIsolir == 0 ? 'selected' : '' }} value="0">Tidak</option>
+            <option value="" disabled>Pilih Area</option>
+            @foreach (Helper::getArea() as $val)
+            <option value="{{ $val->id }}" {{ !empty($query->user_detail?->idArea) && $query->user_detail->idArea == $val->getRawOriginal('id') ? 'selected' : '' }}>
+              {{ $val->name }}
+            </option>
+            @endforeach
             <!-- Tambah opsi lain jika perlu -->
           </select>
           <label for="area-select">Area</label>

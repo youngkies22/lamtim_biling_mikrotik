@@ -52,13 +52,51 @@
             `;
             }
           },
-          { data: 'name'},
-          { data: 'wa'},
-          { data: 'user_detail.tglDafatar'},
-
-          { data: 'user_detail.googleMap'},
-
-          { data: 'created_at'}
+          { 
+            data: 'name',
+            render: function(data, type, row) {
+              return data || '<span class="text-muted">-</span>';
+            }
+          },
+          { 
+            data: 'wa',
+            render: function(data, type, row) {
+              return data || '<span class="text-muted">-</span>';
+            }
+          },
+          { 
+            data: 'tglDafatar',
+            render: function(data, type, row) {
+              return data || '<span class="text-muted">-</span>';
+            }
+          },
+          { 
+            data: 'mikrotik',
+            render: function(data, type, row) {
+              if (type === 'display') {
+                return data || '<span class="text-muted">-</span>';
+              }
+              return data;
+            }
+          },
+          { 
+            data: 'paket',
+            render: function(data, type, row) {
+              if (type === 'display') {
+                return data || '<span class="text-muted">-</span>';
+              }
+              return data;
+            }
+          },
+          { 
+            data: 'googleMap',
+            render: function(data, type, row) {
+              if (type === 'display') {
+                return data || '<span class="text-muted">-</span>';
+              }
+              return data;
+            }
+          }
 
         ],
 
@@ -212,6 +250,7 @@
     <table id="table" class="datatables-basic table table-bordered">
       <thead>
         <tr>
+          <th>+</th>
           <th>NO</th>
           <th>AKSI</th>
           <th>NAMA</th>

@@ -35,4 +35,8 @@ class Lamtim_user_mikrotik_details extends Model
   {
     return $this->belongsTo(Lamtim_kategori::class, 'idKategori', 'id');
   }
+  public function mikrotik()
+  {
+    return $this->belongsTo(Lamtim_mikrotik::class, 'idMikrotik', 'id');
+  }
 }

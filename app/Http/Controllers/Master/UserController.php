@@ -203,10 +203,48 @@ class UserController extends Controller
     ];
     $with = [
       'user_detail:id,idUser,idArea,statusIsolir,tglDafatar,tglJatuhTempo,statusPpn,statusTagihan,jenisBayar,googleMap,js,identitas,noIdentitas,alamat,keterangan',
-      'user_mikrotik'
+      'user_mikrotik.mikrotik:id,nama',
+      'user_mikrotik.paket:id,nama'
     ];
     $where = ['idRole' => 5];
-    return $this->service->getDatatablesJson($columns, $callbacks, $with, $where);
+    
+    $query = \App\Models\User::select($columns)->with($with)->where($where)->get();
+    $datatable = \Yajra\DataTables\Facades\DataTables::of($query);
+    
+    // Tambahkan callback untuk kolom yang ada
+    if (!empty($callbacks)) {
+      foreach ($callbacks as $column => $callback) {
+        $datatable->editColumn($column, $callback);
+      }
+    }
+    
+    // Tambahkan kolom virtual
+    $datatable->addColumn('tglDafatar', function($row) {
+      return $row->user_detail ? Carbon::parse($row->user_detail->tglDafatar)->format('d-m-Y') : '-';
+    });
+    
+    $datatable->addColumn('mikrotik', function($row) {
+      if ($row->user_mikrotik && $row->user_mikrotik->mikrotik) {
+        return $row->user_mikrotik->mikrotik->nama ?? '-';
+      }
+      return '<span class="text-muted">-</span>';
+    });
+    
+    $datatable->addColumn('paket', function($row) {
+      if ($row->user_mikrotik && $row->user_mikrotik->paket) {
+        return $row->user_mikrotik->paket->nama ?? '-';
+      }
+      return '<span class="text-muted">-</span>';
+    });
+    
+    $datatable->addColumn('googleMap', function($row) {
+      if ($row->user_detail && $row->user_detail->googleMap) {
+        return '<a href="' . e($row->user_detail->googleMap) . '" target="_blank" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-map-marker"></i> Lihat</a>';
+      }
+      return '<span class="text-muted">-</span>';
+    });
+    
+    return $datatable->rawColumns(['mikrotik', 'paket', 'googleMap'])->make(true);
   }
 
   #mapping -------------------------------------------------------------------------------------------

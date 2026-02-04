@@ -103,7 +103,7 @@
           <select name="area" id="area-select" class="form-select" required>
             <option value="" disabled selected>Pilih Area</option>
             @foreach (Helper::getArea() as $val)
-            <option value="{{ $val->id }}">{{ $val->name }} | {{ $val->idKel }}</option>
+            <option value="{{ $val->id }}">{{ $val->name }}</option>
             @endforeach
             <!-- Tambah opsi lain jika perlu -->
           </select>

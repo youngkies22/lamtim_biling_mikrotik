@@ -61,7 +61,7 @@ class MappingController extends Controller
       return $item;
     });
 
-    $odps = Lamtim_odp::select('id', 'nama', 'latitude', 'longitude', 'idOdc', 'port', 'portSisa', 'portOdc')->get()->map(function ($item) {
+    $odps = Lamtim_odp::select('id', 'nama', 'latitude', 'longitude', 'idOdc', 'idOdp', 'port', 'portSisa', 'portOdc')->get()->map(function ($item) {
       $item->type = 'ODP';
       return $item;
     });
@@ -79,7 +79,7 @@ class MappingController extends Controller
     // Ambil detail user beserta relasi OLT, ODC, ODP
     $details = Lamtim_user_mikrotik_details::with([
       'odc:id,latitude,longitude,nama,port,portSisa,portOlt',
-      'odp:id,idOdc,latitude,longitude,nama,port,portSisa,portOdc',
+      'odp:id,idOdc,idOdp,latitude,longitude,nama,port,portSisa,portOdc',
     ])
       ->where('idUser', decrypt($idUser))
       ->select('id', 'idUser', 'idOlt', 'idOdc', 'idOdp', 'latitude', 'longitude')
@@ -106,6 +106,7 @@ class MappingController extends Controller
         'nama' => $odp->nama,
         'type' => 'ODP',
         'idOdc' => $odp->idOdc,
+        'idOdp' => $odp->idOdp,
         'port' => $odp->port,
         'portSisa' => $odp->portSisa,
         'portOdc' => $odp->portOdc,
@@ -146,15 +147,15 @@ class MappingController extends Controller
   public function jsonGetShowMapUser()
   {
     // Ambil detail user beserta relasi OLT, ODC, ODP
-
     $details = Lamtim_user_mikrotik_details::with([
       'odc:id,latitude,longitude,nama,port,portSisa,portOlt',
-      'odp:id,idOdc,latitude,longitude,nama,port,portSisa,portOdc',
+      'odp:id,idOdc,idOdp,latitude,longitude,nama,port,portSisa,portOdc',
       'paket:id,nama',
       'kategori:id,nama',
       'user:id,name,julukan',
     ])->select('id', 'idUser', 'idPaket', 'idKategori', 'idOlt', 'idOdc', 'idOdp', 'latitude', 'longitude')
       ->get();
+    
     // USER nodes
     $users = $details->map(function ($item) {
       return [
@@ -170,8 +171,13 @@ class MappingController extends Controller
       ];
     });
 
-    // ODP nodes
-    $odps = $details->pluck('odp')->filter()->unique('id')->map(function ($odp) use ($details) {
+    // Ambil SEMUA ODP nodes (tidak hanya yang punya user)
+    $allOdps = Lamtim_odp::whereNotNull('latitude')
+      ->whereNotNull('longitude')
+      ->select('id', 'idOdc', 'idOdp', 'latitude', 'longitude', 'nama', 'port', 'portSisa', 'portOdc')
+      ->get();
+    
+    $odps = $allOdps->map(function ($odp) use ($details) {
       $countUser = $details->where('idOdp', $odp->id)->count();
       return [
         'id' => $odp->id,
@@ -180,6 +186,7 @@ class MappingController extends Controller
         'nama' => $odp->nama,
         'type' => 'ODP',
         'idOdc' => $odp->idOdc,
+        'idOdp' => $odp->idOdp,
         'port' => $odp->port,
         'portSisa' => $odp->portSisa,
         'portOdc' => $odp->portOdc,
@@ -187,10 +194,16 @@ class MappingController extends Controller
       ];
     });
 
-    // ODC nodes
-    $odcs = $details->pluck('odc')->filter()->unique('id')->map(function ($odc) use ($details) {
+    // Ambil SEMUA ODC nodes (tidak hanya yang punya user)
+    $allOdcs = Lamtim_odc::whereNotNull('latitude')
+      ->whereNotNull('longitude')
+      ->select('id', 'latitude', 'longitude', 'nama', 'port', 'portSisa', 'portOlt')
+      ->get();
+    
+    $odcs = $allOdcs->map(function ($odc) use ($details) {
       $countUser = $details->where('idOdc', $odc->id)->count();
-      $totalOdp = $details->where('idOdc', $odc->id)->pluck('odp')->filter()->unique('id')->count();
+      // Hitung total ODP yang terhubung ke ODC ini
+      $totalOdp = Lamtim_odp::where('idOdc', $odc->id)->count();
       return [
         'id' => $odc->id,
         'latitude' => $odc->latitude,

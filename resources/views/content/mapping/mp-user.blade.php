@@ -9,6 +9,230 @@
 <style>
   #map {
     height: 100vh;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Pastikan map container tidak membuat stacking context yang mengganggu */
+  #map.leaflet-container {
+    z-index: 1 !important;
+    position: relative !important;
+  }
+
+  /* Pastikan leaflet container memiliki z-index rendah */
+  .leaflet-container {
+    z-index: 1 !important;
+    position: relative !important;
+  }
+
+  .leaflet-pane {
+    z-index: 1 !important;
+  }
+
+  .leaflet-map-pane {
+    z-index: 1 !important;
+  }
+
+  .leaflet-tile-pane {
+    z-index: 1 !important;
+  }
+
+  .leaflet-overlay-pane {
+    z-index: 2 !important;
+  }
+
+  .leaflet-shadow-pane {
+    z-index: 3 !important;
+  }
+
+  .leaflet-marker-pane {
+    z-index: 4 !important;
+  }
+
+  .leaflet-tooltip-pane {
+    z-index: 5 !important;
+  }
+
+  .leaflet-popup-pane {
+    z-index: 6 !important;
+  }
+
+  .leaflet-top,
+  .leaflet-bottom {
+    z-index: 7 !important;
+  }
+
+  .leaflet-control {
+    z-index: 7 !important;
+  }
+
+  /* Perbaiki z-index untuk dropdown menu agar muncul di atas map */
+  .dropdown-menu {
+    z-index: 9999 !important;
+  }
+
+  .dropdown {
+    z-index: 9999 !important;
+  }
+
+  .dropdown.show {
+    z-index: 9999 !important;
+  }
+
+  .dropdown-toggle::after {
+    z-index: 10000 !important;
+  }
+
+  /* Perbaiki z-index untuk menu horizontal (menu-sub) - hanya z-index, jangan ubah position */
+  .menu-sub {
+    z-index: 9999 !important;
+  }
+
+  .menu-dropdown {
+    z-index: 9999 !important;
+  }
+
+  .menu-item.menu-dropdown {
+    z-index: 9999 !important;
+  }
+
+  .menu-item.menu-dropdown.open {
+    z-index: 9999 !important;
+  }
+
+  .menu-horizontal {
+    z-index: 9998 !important;
+  }
+
+  .layout-menu-horizontal {
+    z-index: 9998 !important;
+  }
+
+  /* Pastikan semua elemen dropdown di atas map */
+  body .dropdown-menu {
+    z-index: 9999 !important;
+  }
+
+  body .navbar .dropdown-menu {
+    z-index: 9999 !important;
+  }
+
+  body .menu-sub {
+    z-index: 9999 !important;
+  }
+
+  /* Pastikan parent element dropdown juga di atas */
+  .navbar-nav .dropdown {
+    z-index: 9999 !important;
+  }
+
+  .navbar-nav .nav-item.dropdown {
+    z-index: 9999 !important;
+  }
+
+  /* Pastikan semua elemen di navbar di atas map */
+  .layout-navbar .dropdown-menu {
+    z-index: 9999 !important;
+  }
+
+  .layout-navbar .navbar-nav {
+    z-index: 9999 !important;
+  }
+
+  .layout-navbar .nav-item {
+    z-index: 9999 !important;
+  }
+
+  /* Pastikan layout wrapper tidak menghalangi */
+  .layout-wrapper {
+    z-index: 10 !important;
+  }
+
+  .layout-navbar {
+    z-index: 9998 !important;
+  }
+
+  /* Pastikan content wrapper di atas map */
+  .content-wrapper {
+    z-index: 10 !important;
+  }
+
+  .layout-page {
+    z-index: 10 !important;
+  }
+
+  .offcanvas {
+    z-index: 1055 !important;
+  }
+
+  .modal {
+    z-index: 1060 !important;
+  }
+
+  .btn-group {
+    z-index: 1050 !important;
+    position: relative !important;
+  }
+
+  /* Pastikan card dan form di atas map */
+  .card {
+    position: relative;
+    z-index: 10 !important;
+  }
+
+  /* Pastikan navbar dan menu di atas map */
+  .layout-navbar {
+    z-index: 9998 !important;
+    position: relative !important;
+  }
+
+  .layout-menu {
+    z-index: 1020 !important;
+  }
+
+  .navbar {
+    z-index: 9998 !important;
+    position: relative !important;
+  }
+
+  .navbar-brand,
+  .navbar-nav,
+  .navbar-nav .nav-link {
+    z-index: 9998 !important;
+    position: relative !important;
+  }
+
+  /* Pastikan dropdown di navbar juga di atas map */
+  .navbar .dropdown-menu {
+    z-index: 9999 !important;
+    position: absolute !important;
+  }
+
+  .navbar .dropdown {
+    z-index: 9999 !important;
+    position: relative !important;
+  }
+
+  .navbar .dropdown.show {
+    z-index: 9999 !important;
+  }
+
+  /* Pastikan tooltip dan popover di atas map */
+  .tooltip {
+    z-index: 1070 !important;
+  }
+
+  .popover {
+    z-index: 1060 !important;
+  }
+
+  /* Pastikan select2 dropdown di atas map */
+  .select2-container {
+    z-index: 1050 !important;
+  }
+
+  .select2-dropdown {
+    z-index: 1051 !important;
   }
 
   .custom-marker {
@@ -36,6 +260,21 @@
     color: #333;
     border: 1px solid #ccc;
   }
+
+  .custom-marker {
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.1);
+      opacity: 0.8;
+    }
+  }
 </style>
 @endsection
 
@@ -47,6 +286,64 @@
 @endsection
 
 @section('page-script')
+<script>
+  // Perbaiki z-index dropdown saat dibuka - hanya z-index, jangan ubah position
+  $(document).on('show.bs.dropdown', '.dropdown', function() {
+    $(this).css('z-index', '9999');
+    $(this).find('.dropdown-menu').css('z-index', '9999');
+    // Pastikan parent juga memiliki z-index tinggi
+    $(this).closest('.navbar-nav, .navbar, .layout-navbar').css('z-index', '9998');
+  });
+
+  $(document).on('shown.bs.dropdown', '.dropdown', function() {
+    $(this).css('z-index', '9999');
+    $(this).find('.dropdown-menu').css('z-index', '9999');
+    // Pastikan parent juga memiliki z-index tinggi
+    $(this).closest('.navbar-nav, .navbar, .layout-navbar').css('z-index', '9998');
+  });
+
+  // Pastikan saat dropdown ditutup, z-index tetap tinggi untuk navbar
+  $(document).on('hide.bs.dropdown', '.dropdown', function() {
+    $(this).closest('.navbar-nav, .navbar, .layout-navbar').css('z-index', '9998');
+  });
+
+  // Perbaiki z-index untuk menu horizontal (menu-sub)
+  function fixMenuZIndex() {
+    // Pastikan menu-sub selalu di atas map - hanya z-index, jangan ubah position
+    $('.menu-sub').css('z-index', '9999');
+    $('.menu-dropdown').css('z-index', '9999');
+    $('.menu-item.menu-dropdown').css('z-index', '9999');
+    $('.menu-horizontal, .layout-menu-horizontal').css('z-index', '9998');
+    $('.menu-item.menu-dropdown.open').css('z-index', '9999');
+  }
+
+  $(document).ready(function() {
+    fixMenuZIndex();
+    
+    // Update z-index saat menu dibuka/ditutup
+    $(document).on('click', '.menu-toggle', function() {
+      setTimeout(fixMenuZIndex, 50);
+    });
+
+    // Observer untuk perubahan class
+    const observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          setTimeout(fixMenuZIndex, 10);
+        }
+      });
+    });
+
+    // Observe semua menu-item
+    $('.menu-item.menu-dropdown').each(function() {
+      observer.observe(this, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
+    });
+  });
+</script>
+<script>
 <script>
   const paketData = @json(Helper::getPaketGrouped());
 
@@ -230,6 +527,52 @@
     .bindPopup('<b>Server Kang Wifi</b>')
     .openPopup();
 
+  // Fungsi untuk membuat animated polyline modern dengan efek garis bergerak
+  function createAnimatedPolyline(coordinates, options = {}) {
+    const defaultOptions = {
+      color: '#3388ff',
+      weight: 3,
+      opacity: 0.85,
+      smoothFactor: 1
+    };
+    
+    const finalOptions = { ...defaultOptions, ...options };
+    
+    // Buat polyline dengan dash array untuk efek animasi
+    const polyline = L.polyline(coordinates, {
+      color: finalOptions.color,
+      weight: finalOptions.weight,
+      opacity: finalOptions.opacity,
+      smoothFactor: finalOptions.smoothFactor,
+      className: 'animated-polyline'
+    });
+    
+    // Tambahkan animasi setelah polyline ditambahkan ke map
+    polyline.on('add', function() {
+      const path = this._path;
+      if (path) {
+        // Set stroke-dasharray untuk efek garis putus-putus
+        const dashLength = 15;
+        const gapLength = 8;
+        path.setAttribute('stroke-dasharray', `${dashLength},${gapLength}`);
+        
+        // Buat animasi dengan menggunakan SVG animate
+        const animate = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
+        animate.setAttribute('attributeName', 'stroke-dashoffset');
+        animate.setAttribute('from', '0');
+        animate.setAttribute('to', dashLength + gapLength);
+        animate.setAttribute('dur', '1s');
+        animate.setAttribute('repeatCount', 'indefinite');
+        path.appendChild(animate);
+        
+        // Tambahkan efek glow/shadow
+        path.style.filter = `drop-shadow(0 0 3px ${finalOptions.color})`;
+        path.style.transition = 'opacity 0.3s ease';
+      }
+    });
+    
+    return polyline;
+  }
 
   function tampilkanJarakGaris(p1, p2, satuan = 'm') {
     const distance = map.distance(p1, p2); // dalam meter
@@ -255,6 +598,7 @@
 
 let odcMap = {};
 let odpMap = {};
+let odpPending = [];
 
 const userId ="{{ $id }}";
   @if (!empty($query->user_mikrotik?->namaMikrotikUser))
@@ -287,12 +631,11 @@ const userId ="{{ $id }}";
           marker.bindPopup(`<b>ODC</b><br>Nama: ${item.nama}<br>Port: ${item.port}<br>Port Sisa: ${item.portSisa}<br>Port OLT: ${item.portOlt}`);
           odcMap[item.id] = position;
 
-          // Garis dari server pusat ke ODC
-          L.polyline([centerLatLng, position], {
-            color: 'orange',
-            weight: 2,
-            opacity: 0.7,
-            dashArray: '4,6'
+          // Garis dari server pusat ke ODC dengan animasi modern
+          createAnimatedPolyline([centerLatLng, position], {
+            color: '#ff9800',
+            weight: 3,
+            opacity: 0.85
           }).addTo(map);
           tampilkanJarakGaris(centerLatLng, position);
         }
@@ -303,15 +646,28 @@ const userId ="{{ $id }}";
           marker.bindPopup(`<b>ODP</b><br>Nama: ${item.nama}<br>Port: ${item.port}<br>Port Sisa: ${item.portSisa}<br>Port ODC: ${item.portOdc}`);
           odpMap[item.id] = position;
 
-          // Jika ODC-nya sudah tersedia
+          // Jika ODC-nya sudah tersedia dengan animasi modern
           if (item.idOdc && odcMap[item.idOdc]) {
-            L.polyline([odcMap[item.idOdc], position], {
-              color: 'green',
-              weight: 2,
-              opacity: 0.7,
-              dashArray: '2,4'
+            createAnimatedPolyline([odcMap[item.idOdc], position], {
+              color: '#4caf50',
+              weight: 3,
+              opacity: 0.85
             }).addTo(map);
             tampilkanJarakGaris(odcMap[item.idOdc], position);
+          }
+
+          // Garis dari ODP ke ODP parent (warna ungu) dengan animasi modern
+          if (item.idOdp) {
+            if (odpMap[item.idOdp]) {
+              createAnimatedPolyline([odpMap[item.idOdp], position], {
+                color: '#9c27b0',
+                weight: 3,
+                opacity: 0.85
+              }).addTo(map);
+              tampilkanJarakGaris(odpMap[item.idOdp], position);
+            } else {
+              odpPending.push({ from: item.idOdp, to: position });
+            }
           }
         }
 
@@ -326,16 +682,26 @@ const userId ="{{ $id }}";
           const marker = L.marker(position, { icon: userIcon }).addTo(map);
           marker.bindPopup(`<b>USER</b><br>ID User: ${item.idUser}`);
 
-          // Jika ODP-nya sudah tersedia
+          // Jika ODP-nya sudah tersedia dengan animasi modern
           if (item.idOdp && odpMap[item.idOdp]) {
-            L.polyline([odpMap[item.idOdp], position], {
-              color: 'blue',
-              weight: 2,
-              opacity: 0.6,
-              dashArray: '2,2'
+            createAnimatedPolyline([odpMap[item.idOdp], position], {
+              color: '#2196f3',
+              weight: 3,
+              opacity: 0.85
             }).addTo(map);
             tampilkanJarakGaris(odpMap[item.idOdp], position);
           }
+        }
+      });
+
+      // Gambar garis ODP-ODP yang pending dengan animasi modern
+      odpPending.forEach(p => {
+        if (odpMap[p.from]) {
+          createAnimatedPolyline([odpMap[p.from], p.to], {
+            color: '#9c27b0',
+            weight: 3,
+            opacity: 0.85
+          }).addTo(map);
         }
       });
     })
@@ -372,24 +738,52 @@ const userId ="{{ $id }}";
           // Simpan posisi ODC berdasarkan ID
           odcMap[item.id] = position;
 
-          // Garis dari server pusat ke ODC (warna oranye)
-          L.polyline([centerLatLng, position], {
-            color: 'orange',
-            weight: 2,
-            opacity: 0.7,
-            dashArray: '4,6'
+          // Garis dari server pusat ke ODC (warna oranye) dengan animasi modern
+          createAnimatedPolyline([centerLatLng, position], {
+            color: '#ff9800',
+            weight: 3,
+            opacity: 0.85
           }).addTo(map);
 
-        } else if (item.type === 'ODP' && item.idOdc && odcMap[item.idOdc]) {
+        } else if (item.type === 'ODP') {
           const marker = L.marker(position, { icon }).addTo(map);
           marker.bindPopup(`<b>${item.type}</b><br>Nama : ${item.nama}<br>Port : ${item.port}<br>Port Sisa : ${item.portSisa}<br>Port ODC : ${item.portOdc}`);
 
-          // Garis dari ODP ke ODC (warna hijau)
-          L.polyline([odcMap[item.idOdc], position], {
-            color: 'green',
+          // Simpan posisi ODP
+          odpMap[item.id] = position;
+
+          // Garis dari ODP ke ODC (warna hijau) dengan animasi modern
+          if (item.idOdc && odcMap[item.idOdc]) {
+            createAnimatedPolyline([odcMap[item.idOdc], position], {
+              color: '#4caf50',
+              weight: 3,
+              opacity: 0.85
+            }).addTo(map);
+          }
+
+          // Garis dari ODP ke ODP parent (warna ungu) dengan animasi modern
+          if (item.idOdp) {
+            if (odpMap[item.idOdp]) {
+              createAnimatedPolyline([odpMap[item.idOdp], position], {
+                color: '#9c27b0',
+                weight: 3,
+                opacity: 0.85
+              }).addTo(map);
+            } else {
+              odpPending.push({ from: item.idOdp, to: position });
+            }
+          }
+        }
+      });
+
+      // Gambar garis ODP-ODP yang pending
+      odpPending.forEach(p => {
+        if (odpMap[p.from]) {
+          L.polyline([odpMap[p.from], p.to], {
+            color: 'purple',
             weight: 2,
             opacity: 0.7,
-            dashArray: '2,4'
+            dashArray: '3,5'
           }).addTo(map);
         }
       });

@@ -34,8 +34,42 @@
         { data: 'portSisa'},
         { data: 'olt'},
         { data: 'sfp'},
-        { data: 'odc'},
-        { data: 'portOdc'},
+        { 
+          data: 'odc',
+          render: function(data, type, row) {
+            if (type === 'display') {
+              return data || '<span class="text-muted">-</span>';
+            }
+            return data;
+          }
+        },
+        { 
+          data: 'portOdc',
+          render: function(data, type, row) {
+            if (type === 'display') {
+              return data || '<span class="text-muted">-</span>';
+            }
+            return data;
+          }
+        },
+        { 
+          data: 'odpParent',
+          name: 'odpParent',
+          title: 'ODP PARENT',
+          orderable: false,
+          searchable: false,
+          render: function(data, type, row) {
+            if (type === 'display') {
+              // Return HTML langsung tanpa escape
+              return data || '<span class="text-muted">-</span>';
+            }
+            // Untuk sorting dan filtering, return text saja
+            if (type === 'type' || type === 'sort') {
+              return data ? data.replace(/<[^>]*>/g, '') : '';
+            }
+            return data;
+          }
+        },
         { data: 'created_at'},
         {
           data: 'id',
@@ -52,7 +86,8 @@
                   <a class="dropdown-item fw-bold btn-edit" href="javascript:void(0);"
                     data-id="${data}" data-nama="${row.nama}" data-kode="${row.kode}"
                     data-olt="${row.idOlt}" data-portodc="${row.portOdc}"
-                    data-port="${row.port}" data-sisa="${row.portSisa}">
+                    data-port="${row.port}" data-sisa="${row.portSisa}"
+                    data-odp-parent="${row.idOdp || ''}">
                     <i class="mdi mdi-pencil-outline me-1"></i> Edit
                   </a>
                    <a class="dropdown-item btn-delete text-danger fw-bold" href="javascript:void(0);" data-id="${data}">
@@ -97,6 +132,10 @@
                 const bsOffcanvas = new bootstrap.Offcanvas(offCanvasEl);
 
                 document.getElementById("form-add-new-record").reset(); // cukup ini
+                // Reset logika ODC/ODP Parent
+                $('select[name="odc"]').prop('required', true);
+                $('input[name="portodc"]').prop('required', true);
+                $('select[name="odc"]').closest('.col-sm-12').find('label').html('ODC');
                 bsOffcanvas.show();
               }
             }
@@ -147,6 +186,10 @@
               if (form.querySelector('[name="recordId"]')) {
                 form.querySelector('[name="recordId"]').remove(); // bersihkan ID agar jadi Add lagi
               }
+              // Reset logika ODC/ODP Parent
+              $('select[name="odc"]').prop('required', true);
+              $('input[name="portodc"]').prop('required', true);
+              $('select[name="odc"]').closest('.col-sm-12').find('label').html('ODC');
               bootstrap.Offcanvas.getInstance(document.getElementById("add-new-record")).hide();
 
               // Reload datatable
@@ -231,6 +274,8 @@
       //const olt = $(this).data("olt");
       const portOdc = $(this).data("portodc");
 
+      const odpParent = $(this).data("odp-parent");
+
       // Isi form
       form.reset(); // Reset dulu
       form.querySelector('[name="nama"]').value = nama;
@@ -239,6 +284,7 @@
       form.querySelector('[name="sisa"]').value = sisa;
       //form.querySelector('[name="olt"]').value = olt;
       form.querySelector('[name="portodc"]').value = portOdc;
+      form.querySelector('[name="odp_parent"]').value = odpParent || '';
 
 
       // Tambahkan hidden input untuk ID (jika belum ada)
@@ -255,6 +301,46 @@
 
       // Tampilkan offcanvas
       bsOffcanvas.show();
+      
+      // Trigger change untuk logika ODC/ODP Parent setelah form diisi
+      setTimeout(function() {
+        $('select[name="odp_parent"]').trigger('change');
+      }, 200);
+    });
+
+    // Logika: Ketika ODP Parent dipilih, ODC bisa dikosongkan
+    $(document).on('change', 'select[name="odp_parent"]', function() {
+      const odpParent = $(this).val();
+      const odcSelect = $('select[name="odc"]');
+      const portOdcInput = $('input[name="portodc"]');
+      
+      if (odpParent && odpParent !== '') {
+        // Jika ODP Parent dipilih, ODC bisa dikosongkan
+        odcSelect.prop('required', false);
+        odcSelect.val('').trigger('change');
+        portOdcInput.prop('required', false);
+        portOdcInput.val('');
+        odcSelect.closest('.col-sm-12').find('label').html('ODC <span class="text-muted">(Opsional jika ODP Parent dipilih)</span>');
+      } else {
+        // Jika ODP Parent dikosongkan, ODC kembali wajib
+        odcSelect.prop('required', true);
+        portOdcInput.prop('required', true);
+        odcSelect.closest('.col-sm-12').find('label').html('ODC');
+      }
+    });
+
+    // Trigger change saat form dibuka untuk edit
+    $(document).on('click', '.btn-edit', function() {
+      setTimeout(function() {
+        $('select[name="odp_parent"]').trigger('change');
+      }, 100);
+    });
+
+    // Reset saat form dibuka untuk add baru
+    $(document).on('click', '.create-new', function() {
+      setTimeout(function() {
+        $('select[name="odp_parent"]').trigger('change');
+      }, 100);
     });
 
 </script>
@@ -278,8 +364,9 @@
 
           <th>OLT</th>
           <th>PORT SFP OLT</th>
-          <th>ODC</th>
+          <th>ODC / ODP PARENT</th>
           <th>PORT ODC</th>
+          <th>ODP PARENT</th>
           <th>CREAD</th>
           <th>AKSI</th>
         </tr>
@@ -371,6 +458,21 @@
               @endforeach
             </select>
             <label for="basicSalary">ODC</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-12">
+        <div class="input-group input-group-merge">
+          <span class="input-group-text"><i class='mdi mdi-link-variant'></i></span>
+          <div class="form-floating form-floating-outline">
+            <select name="odp_parent" class="form-select">
+              <option value="">Tidak Ada (Opsional)</option>
+              @foreach (Helper::getOdp() as $val)
+              <option value="{{ $val->id }}">{{ $val->nama }}</option>
+              @endforeach
+            </select>
+            <label>ODP PARENT (Jalur ODP)</label>
           </div>
         </div>
       </div>
