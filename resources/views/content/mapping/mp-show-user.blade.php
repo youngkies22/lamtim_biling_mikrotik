@@ -4,13 +4,26 @@
 
 @section("vendor-style")
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<!-- Leaflet fullscreen CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen@1.6.0/Control.FullScreen.css" />
 <style>
   #map {
     height: 100vh;
     position: relative;
     z-index: 1;
+    transition: all 0.3s ease;
+  }
+
+  .filter-overlay {
+    position: relative;
+    z-index: 9991;
+  }
+
+  /* Pastikan tombol toggle distance dan name selalu terlihat */
+  #toggle-distance,
+  #toggle-name {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: relative !important;
   }
 
   /* Pastikan map container tidak membuat stacking context yang mengganggu */
@@ -261,6 +274,18 @@
     border: 1px solid #ccc;
   }
 
+  .name-label {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: #333;
+    border: 1px solid #007bff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    white-space: nowrap;
+  }
+
   .custom-marker {
     animation: pulse 2s infinite;
   }
@@ -275,14 +300,116 @@
       opacity: 0.8;
     }
   }
+
+  .leaflet-control-fullscreen-btn {
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    background: #fff;
+    border: none;
+    text-decoration: none;
+    color: #333;
+  }
+  .leaflet-control-fullscreen-btn:hover {
+    background: #f4f4f4;
+  }
+
+  /* Filter panel inside map (visible in fullscreen) */
+  .leaflet-control-filter-panel {
+    display: none;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    max-width: 420px;
+  }
+
+  /* Show filter panel only when map is fullscreen */
+  #map:fullscreen .leaflet-control-filter-panel,
+  #map:-webkit-full-screen .leaflet-control-filter-panel {
+    display: block !important;
+  }
+
+  .filter-panel-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 6px;
+  }
+
+  .filter-panel-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .filter-panel-buttons .fp-btn {
+    padding: 4px 10px;
+    font-size: 11px;
+    border: 1px solid #7c7c7c;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #fff;
+    color: #333;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s;
+  }
+
+  .filter-panel-buttons .fp-btn:hover {
+    background: #e9ecef;
+  }
+
+  .filter-panel-buttons .fp-btn.fp-active {
+    background: #696cff;
+    color: #fff;
+    border-color: #696cff;
+  }
+
+  .filter-panel-toggles {
+    display: flex;
+    gap: 4px;
+    border-top: 1px solid #ddd;
+    padding-top: 6px;
+  }
+
+  .filter-panel-toggles .fp-toggle {
+    padding: 3px 8px;
+    font-size: 10px;
+    border: 1px solid #7c7c7c;
+    border-radius: 4px;
+    cursor: pointer;
+    background: #fff;
+    color: #555;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    transition: all 0.2s;
+  }
+
+  .filter-panel-toggles .fp-toggle:hover {
+    background: #e9ecef;
+  }
+
+  .filter-panel-toggles .fp-toggle.fp-on {
+    background: #6c757d;
+    color: #fff;
+    border-color: #6c757d;
+  }
 </style>
 @endsection
 
 
 @section("vendor-script")
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<!-- Leaflet fullscreen JS -->
-<script src="https://unpkg.com/leaflet.fullscreen@1.6.0/Control.FullScreen.js"></script>
 @endsection
 
 @section('page-script')
@@ -348,10 +475,8 @@
   const longitude = "{{ config('services.mapping.longitude-server') }}";
   const centerLatLng = [parseFloat(latitude), parseFloat(longitude)];
 
-  // Inisialisasi peta dengan fullscreenControl
-  const map = L.map('map', {
-    fullscreenControl: true // Aktifkan tombol fullscreen
-  }).setView(centerLatLng, 13);
+  // Inisialisasi peta
+  const map = L.map('map').setView(centerLatLng, 13);
 
   // Tile layer dari OpenStreetMap
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -359,14 +484,142 @@
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
+  // Custom fullscreen control (native browser API)
+  L.Control.FullscreenCustom = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd: function(map) {
+      const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+      const btn = L.DomUtil.create('a', 'leaflet-control-fullscreen-btn', container);
+      btn.href = '#';
+      btn.title = 'Fullscreen';
+      btn.innerHTML = '&#x26F6;';
+      btn.setAttribute('role', 'button');
+
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.on(btn, 'click', function(e) {
+        L.DomEvent.preventDefault(e);
+        const mapEl = map.getContainer();
+        if (!document.fullscreenElement) {
+          mapEl.requestFullscreen().then(() => {
+            btn.innerHTML = '&#x2716;';
+            btn.title = 'Keluar Fullscreen';
+            setTimeout(() => map.invalidateSize(), 200);
+          }).catch(() => {});
+        } else {
+          document.exitFullscreen().then(() => {
+            btn.innerHTML = '&#x26F6;';
+            btn.title = 'Fullscreen';
+            setTimeout(() => map.invalidateSize(), 200);
+          }).catch(() => {});
+        }
+      });
+
+      document.addEventListener('fullscreenchange', function() {
+        if (!document.fullscreenElement) {
+          btn.innerHTML = '&#x26F6;';
+          btn.title = 'Fullscreen';
+          setTimeout(() => map.invalidateSize(), 200);
+        }
+      });
+
+      return container;
+    }
+  });
+  map.addControl(new L.Control.FullscreenCustom());
+
+  // Filter panel control (visible only in fullscreen)
+  L.Control.FilterPanel = L.Control.extend({
+    options: { position: 'topleft' },
+    onAdd: function(map) {
+      const container = L.DomUtil.create('div', 'leaflet-control leaflet-control-filter-panel');
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
+
+      container.innerHTML = `
+        <div class="filter-panel-title">Filter Tampilan</div>
+        <div class="filter-panel-buttons">
+          <a href="#" class="fp-btn fp-active" data-fp-filter="all">Semua</a>
+          <a href="#" class="fp-btn" data-fp-filter="odc">ODC</a>
+          <a href="#" class="fp-btn" data-fp-filter="odp">ODP</a>
+          <a href="#" class="fp-btn" data-fp-filter="user">Pelanggan</a>
+        </div>
+        <div class="filter-panel-toggles">
+          <a href="#" class="fp-toggle fp-on" id="fp-toggle-distance">Jarak: ON</a>
+          <a href="#" class="fp-toggle" id="fp-toggle-name">Nama: OFF</a>
+        </div>
+      `;
+
+      // Filter buttons
+      container.querySelectorAll('.fp-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          const type = this.getAttribute('data-fp-filter');
+          // Update active state in this panel
+          container.querySelectorAll('.fp-btn').forEach(b => b.classList.remove('fp-active'));
+          this.classList.add('fp-active');
+          // Call the global filter function
+          if (typeof window.filterMap === 'function') {
+            window.filterMap(type);
+          }
+          // Sync external buttons
+          document.querySelectorAll('[id^="filter-"]').forEach(b => {
+            b.classList.remove('active', 'btn-primary');
+            b.classList.add('btn-outline-primary');
+          });
+          const extBtn = document.getElementById('filter-' + type);
+          if (extBtn) {
+            extBtn.classList.add('active');
+            extBtn.classList.remove('btn-outline-primary');
+            extBtn.classList.add('btn-primary');
+          }
+        });
+      });
+
+      // Distance toggle
+      const fpDistBtn = container.querySelector('#fp-toggle-distance');
+      fpDistBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (typeof window.toggleDistanceLabels === 'function') {
+          window.toggleDistanceLabels();
+        }
+        // Sync state
+        if (distanceLabelsVisible) {
+          this.textContent = 'Jarak: ON';
+          this.classList.add('fp-on');
+        } else {
+          this.textContent = 'Jarak: OFF';
+          this.classList.remove('fp-on');
+        }
+      });
+
+      // Name toggle
+      const fpNameBtn = container.querySelector('#fp-toggle-name');
+      fpNameBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (typeof window.toggleNameLabels === 'function') {
+          window.toggleNameLabels();
+        }
+        // Sync state
+        if (nameLabelsVisible) {
+          this.textContent = 'Nama: ON';
+          this.classList.add('fp-on');
+        } else {
+          this.textContent = 'Nama: OFF';
+          this.classList.remove('fp-on');
+        }
+      });
+
+      return container;
+    }
+  });
+  map.addControl(new L.Control.FilterPanel());
+
   // Marker Server Pusat
   L.marker(centerLatLng)
     .addTo(map)
     .bindPopup('<b>Server Kang Wifi</b>')
     .openPopup();
 
-
-  let allDistanceLabels = []; // Simpan semua label jarak untuk filter
 
   function tampilkanJarakGaris(p1, p2, satuan = 'm', type = 'all') {
     const distance = map.distance(p1, p2); // dalam meter
@@ -448,10 +701,14 @@ let odpMap = {};
 let odpPending = [];
 let allMarkers = []; // Simpan semua marker untuk filter
 let allPolylines = []; // Simpan semua polyline untuk filter
+let allDistanceLabels = []; // Simpan semua label jarak untuk filter
+let allNameLabels = []; // Simpan semua label nama untuk filter
+let nameLabelsVisible = false; // Status tampilan label nama
+let distanceLabelsVisible = true; // Status tampilan label jarak
 
 // Fungsi untuk filter tampilan
-function filterMap(type) {
-  // Filter markers
+window.filterMap = function(type) {
+  // Filter markers terlebih dahulu
   allMarkers.forEach(marker => {
     const markerType = marker.options.type;
     if (type === 'all' || markerType === type) {
@@ -465,32 +722,40 @@ function filterMap(type) {
     }
   });
 
-  // Filter polylines dengan logika yang lebih kompleks
+  // Filter polylines - tampilkan jika type sesuai dengan filter
   allPolylines.forEach(polyline => {
+    if (!polyline || !polyline.options) return; // Skip jika polyline tidak valid
+    
     const polylineType = polyline.options.type;
     let shouldShow = false;
     
     if (type === 'all') {
       shouldShow = true;
     } else if (type === 'odc') {
-      // Tampilkan garis server->ODC dan ODC->ODP
+      // Tampilkan garis server->ODC (type: 'odc')
       shouldShow = polylineType === 'odc';
     } else if (type === 'odp') {
-      // Tampilkan garis ODC->ODP dan ODP->ODP parent
+      // Tampilkan garis ODC->ODP (type: 'odp') dan ODP->ODP parent (type: 'odp_parent')
       shouldShow = polylineType === 'odp' || polylineType === 'odp_parent';
     } else if (type === 'user') {
-      // Tampilkan garis ODP->User
+      // Tampilkan garis ODP->User (type: 'user')
       shouldShow = polylineType === 'user';
     }
     
-    if (shouldShow) {
-      if (!map.hasLayer(polyline)) {
-        polyline.addTo(map);
+    try {
+      if (shouldShow) {
+        // Pastikan polyline ditambahkan ke map
+        if (!map.hasLayer(polyline)) {
+          polyline.addTo(map);
+        }
+      } else {
+        // Hapus polyline dari map jika tidak sesuai filter
+        if (map.hasLayer(polyline)) {
+          map.removeLayer(polyline);
+        }
       }
-    } else {
-      if (map.hasLayer(polyline)) {
-        map.removeLayer(polyline);
-      }
+    } catch (e) {
+      console.error('Error filtering polyline:', e);
     }
   });
 
@@ -509,11 +774,152 @@ function filterMap(type) {
       shouldShow = labelType === 'user';
     }
     
-    if (shouldShow) {
+    // Hanya tampilkan jika sesuai filter DAN distance labels visible
+    if (shouldShow && distanceLabelsVisible) {
       if (!map.hasLayer(label)) {
         label.addTo(map);
       }
     } else {
+      if (map.hasLayer(label)) {
+        map.removeLayer(label);
+      }
+    }
+  });
+
+  // Filter name labels
+  allNameLabels.forEach(label => {
+    const labelType = label.options.type;
+    let shouldShow = false;
+    
+    if (type === 'all') {
+      shouldShow = true;
+    } else if (type === 'odc') {
+      shouldShow = labelType === 'odc';
+    } else if (type === 'odp') {
+      shouldShow = labelType === 'odp';
+    } else if (type === 'user') {
+      shouldShow = labelType === 'user';
+    }
+    
+    // Hanya tampilkan jika sesuai filter DAN name labels visible
+    if (shouldShow && nameLabelsVisible) {
+      if (!map.hasLayer(label)) {
+        label.addTo(map);
+      }
+    } else {
+      if (map.hasLayer(label)) {
+        map.removeLayer(label);
+      }
+    }
+  });
+}
+
+// Fungsi untuk toggle show/hide jarak
+window.toggleDistanceLabels = function() {
+  distanceLabelsVisible = !distanceLabelsVisible;
+  
+  const toggleBtn = document.getElementById('toggle-distance');
+  const labelText = document.getElementById('distance-label-text');
+  
+  if (distanceLabelsVisible) {
+    labelText.textContent = 'Sembunyikan';
+    toggleBtn.classList.remove('btn-outline-secondary');
+    toggleBtn.classList.add('btn-secondary');
+  } else {
+    labelText.textContent = 'Tampilkan';
+    toggleBtn.classList.remove('btn-secondary');
+    toggleBtn.classList.add('btn-outline-secondary');
+  }
+  
+  // Update semua distance labels berdasarkan status
+  allDistanceLabels.forEach(label => {
+    if (distanceLabelsVisible) {
+      // Tampilkan label jika sesuai dengan filter aktif
+      const currentFilter = document.querySelector('[id^="filter-"].active')?.id?.replace('filter-', '') || 'all';
+      const labelType = label.options.type;
+      let shouldShow = false;
+      
+      if (currentFilter === 'all') {
+        shouldShow = true;
+      } else if (currentFilter === 'odc') {
+        shouldShow = labelType === 'odc';
+      } else if (currentFilter === 'odp') {
+        shouldShow = labelType === 'odp';
+      } else if (currentFilter === 'user') {
+        shouldShow = labelType === 'user';
+      }
+      
+      if (shouldShow && !map.hasLayer(label)) {
+        label.addTo(map);
+      }
+    } else {
+      // Sembunyikan semua label
+      if (map.hasLayer(label)) {
+        map.removeLayer(label);
+      }
+    }
+  });
+}
+
+// Fungsi untuk membuat label nama
+function tampilkanNamaLabel(position, nama, type = 'all') {
+  const nameLabel = L.tooltip({
+    permanent: true,
+    direction: 'top',
+    className: 'name-label',
+    offset: [0, -10]
+  })
+  .setLatLng(position)
+  .setContent(nama);
+  
+  // Simpan type untuk filter
+  nameLabel.options.type = type;
+  allNameLabels.push(nameLabel);
+  
+  return nameLabel;
+}
+
+
+// Fungsi untuk toggle show/hide nama
+window.toggleNameLabels = function() {
+  nameLabelsVisible = !nameLabelsVisible;
+  
+  const toggleBtn = document.getElementById('toggle-name');
+  const labelText = document.getElementById('name-label-text');
+  
+  if (nameLabelsVisible) {
+    labelText.textContent = 'Sembunyikan';
+    toggleBtn.classList.remove('btn-outline-secondary');
+    toggleBtn.classList.add('btn-secondary');
+  } else {
+    labelText.textContent = 'Tampilkan';
+    toggleBtn.classList.remove('btn-secondary');
+    toggleBtn.classList.add('btn-outline-secondary');
+  }
+  
+  // Update semua name labels berdasarkan status
+  allNameLabels.forEach(label => {
+    if (nameLabelsVisible) {
+      // Tampilkan label jika sesuai dengan filter aktif
+      const currentFilter = document.querySelector('[id^="filter-"].active')?.id?.replace('filter-', '') || 'all';
+      const labelType = label.options.type;
+      let shouldShow = false;
+      
+      if (currentFilter === 'all') {
+        shouldShow = true;
+      } else if (currentFilter === 'odc') {
+        shouldShow = labelType === 'odc';
+      } else if (currentFilter === 'odp') {
+        shouldShow = labelType === 'odp';
+      } else if (currentFilter === 'user') {
+        shouldShow = labelType === 'user';
+      }
+      
+      if (shouldShow && !map.hasLayer(label)) {
+        label.addTo(map);
+      }
+    } else {
+      // Sembunyikan semua label
       if (map.hasLayer(label)) {
         map.removeLayer(label);
       }
@@ -556,6 +962,12 @@ fetch(`/mapping/json/mapping/show/user`)
         `);
         odcMap[item.id] = position;
         allMarkers.push(marker);
+        
+        // Tambahkan label nama
+        const nameLabel = tampilkanNamaLabel(position, item.nama, 'odc');
+        if (nameLabelsVisible) {
+          nameLabel.addTo(map);
+        }
 
         // Garis dari server pusat ke ODC dengan animasi modern
         const polyline = createAnimatedPolyline([centerLatLng, position], {
@@ -580,6 +992,12 @@ fetch(`/mapping/json/mapping/show/user`)
         `);
         odpMap[item.id] = position;
         allMarkers.push(marker);
+        
+        // Tambahkan label nama
+        const nameLabel = tampilkanNamaLabel(position, item.nama, 'odp');
+        if (nameLabelsVisible) {
+          nameLabel.addTo(map);
+        }
 
         // Jika ODC-nya sudah tersedia dengan animasi modern
         if (item.idOdc && odcMap[item.idOdc]) {
@@ -661,6 +1079,45 @@ fetch(`/mapping/json/mapping/show/user`)
         tampilkanJarakGaris(odpMap[p.from], p.to, 'm', 'odp');
       }
     });
+
+    // Update fungsi filter untuk update button state setelah filterMap didefinisikan
+    if (typeof window.filterMap !== 'undefined') {
+      const originalFilterMap = window.filterMap;
+      window.filterMap = function(type) {
+        originalFilterMap(type);
+
+        // Update external button states
+        document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+          btn.classList.remove('active');
+          btn.classList.add('btn-outline-primary');
+          btn.classList.remove('btn-primary');
+        });
+
+        const activeBtn = document.getElementById(`filter-${type}`);
+        if (activeBtn) {
+          activeBtn.classList.add('active');
+          activeBtn.classList.remove('btn-outline-primary');
+          activeBtn.classList.add('btn-primary');
+        }
+
+        // Sync in-map filter panel buttons
+        document.querySelectorAll('.fp-btn').forEach(b => b.classList.remove('fp-active'));
+        const fpBtn = document.querySelector(`.fp-btn[data-fp-filter="${type}"]`);
+        if (fpBtn) fpBtn.classList.add('fp-active');
+      };
+    }
+
+    // Sync in-map toggle states after data loaded
+    const fpDist = document.getElementById('fp-toggle-distance');
+    const fpName = document.getElementById('fp-toggle-name');
+    if (fpDist) {
+      fpDist.textContent = distanceLabelsVisible ? 'Jarak: ON' : 'Jarak: OFF';
+      fpDist.classList.toggle('fp-on', distanceLabelsVisible);
+    }
+    if (fpName) {
+      fpName.textContent = nameLabelsVisible ? 'Nama: ON' : 'Nama: OFF';
+      fpName.classList.toggle('fp-on', nameLabelsVisible);
+    }
   })
   .catch(error => {
     console.error("Gagal load data mapping:", error);
@@ -668,23 +1125,6 @@ fetch(`/mapping/json/mapping/show/user`)
 
 
 
-    //pilih area untuk di pindai
-   let marker;
-     map.on('click', function (e) {
-    const lat = e.latlng.lat.toFixed(6);
-    const lng = e.latlng.lng.toFixed(6);
-
-    document.getElementById('lat').value = lat;
-    document.getElementById('lng').value = lng;
-
-    if (marker) {
-      map.removeLayer(marker);
-    }
-
-    marker = L.marker([lat, lng]).addTo(map)
-      .bindPopup(`Koordinat: ${lat}, ${lng}`)
-      .openPopup();
-  });
 
 </script>
 @endsection
@@ -695,24 +1135,34 @@ fetch(`/mapping/json/mapping/show/user`)
     <div class="col-md-12">
       <div id="formMapping">
         {{-- Filter Section --}}
-        <div class="row mb-3">
+        <div class="row mb-3 filter-overlay">
           <div class="col-md-12">
-            <div class="card">
+            <div class="card shadow-lg">
               <div class="card-body">
                 <h6 class="card-title mb-3">Filter Tampilan</h6>
-                <div class="btn-group" role="group" aria-label="Filter tampilan">
-                  <button type="button" class="btn btn-primary active" onclick="filterMap('all')" id="filter-all">
-                    <i class="mdi mdi-view-grid"></i> Semua
-                  </button>
-                  <button type="button" class="btn btn-outline-primary" onclick="filterMap('odc')" id="filter-odc">
-                    <i class="mdi mdi-server"></i> ODC Saja
-                  </button>
-                  <button type="button" class="btn btn-outline-primary" onclick="filterMap('odp')" id="filter-odp">
-                    <i class="mdi mdi-router"></i> ODP Saja
-                  </button>
-                  <button type="button" class="btn btn-outline-primary" onclick="filterMap('user')" id="filter-user">
-                    <i class="mdi mdi-account"></i> Pelanggan Saja
-                  </button>
+                <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                  <div class="btn-group" role="group" aria-label="Filter tampilan">
+                    <button type="button" class="btn btn-primary active" onclick="filterMap('all')" id="filter-all">
+                      <i class="mdi mdi-view-grid"></i> Semua
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="filterMap('odc')" id="filter-odc">
+                      <i class="mdi mdi-server"></i> ODC Saja
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="filterMap('odp')" id="filter-odp">
+                      <i class="mdi mdi-router"></i> ODP Saja
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="filterMap('user')" id="filter-user">
+                      <i class="mdi mdi-account"></i> Pelanggan Saja
+                    </button>
+                  </div>
+                  <div class="d-flex gap-2" style="display: flex !important; visibility: visible !important; opacity: 1 !important;">
+                    <button type="button" class="btn btn-secondary" onclick="toggleDistanceLabels()" id="toggle-distance" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important;">
+                      <i class="mdi mdi-ruler"></i> <span id="distance-label-text">Sembunyikan</span> Jarak
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="toggleNameLabels()" id="toggle-name" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important;">
+                      <i class="mdi mdi-label"></i> <span id="name-label-text">Tampilkan</span> Nama
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -730,26 +1180,5 @@ fetch(`/mapping/json/mapping/show/user`)
   </div>
 </div>
 
-<script>
-  // Update fungsi filter untuk update button state
-  const originalFilterMap = filterMap;
-  filterMap = function(type) {
-    originalFilterMap(type);
-    
-    // Update button states
-    document.querySelectorAll('[id^="filter-"]').forEach(btn => {
-      btn.classList.remove('active');
-      btn.classList.add('btn-outline-primary');
-      btn.classList.remove('btn-primary');
-    });
-    
-    const activeBtn = document.getElementById(`filter-${type}`);
-    if (activeBtn) {
-      activeBtn.classList.add('active');
-      activeBtn.classList.remove('btn-outline-primary');
-      activeBtn.classList.add('btn-primary');
-    }
-  };
-</script>
 
 @endsection
