@@ -127,7 +127,12 @@
               <div>Tagihan Lunas</div>
             </a>
           </li>
-
+          <li class="menu-item">
+            <a href="{{ route('tagihan.generate') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-cash-multiple mdi-20px"></i>
+              <div>Generate Tagihan</div>
+            </a>
+          </li>
         </ul>
       </li>
 

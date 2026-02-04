@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Master\UserController;
+use App\Http\Controllers\Master\FotoController;
 
 Route::prefix('user')->as('user.')->controller(UserController::class)->group(function () {
   Route::get('/data/json', 'json')->name('json');
@@ -13,8 +14,16 @@ Route::prefix('user')->as('user.')->controller(UserController::class)->group(fun
   Route::get('/', 'index')->name('index');
   Route::get('/create', 'create')->name('create');
   Route::post('/', 'store')->name('store');
-  Route::get('/{id}', 'show')->name('show');
+  Route::get('/{id}/foto', 'showFoto')->name('foto');
   Route::get('/{id}/edit', 'edit')->name('edit');
+  Route::get('/{id}', 'show')->name('show');
   Route::post('/{id}', 'update')->name('update');
+  Route::delete('/{id}', 'destroy')->name('destroy');
+});
+
+// Foto routes
+Route::prefix('foto')->as('foto.')->controller(FotoController::class)->group(function () {
+  Route::post('/upload', 'store')->name('store');
+  Route::get('/user/{id}', 'getByUser')->name('user');
   Route::delete('/{id}', 'destroy')->name('destroy');
 });

@@ -54,4 +54,8 @@ class User extends Authenticatable
   {
     return $this->hasOne(Lamtim_user_mikrotik_details::class, 'idUser', 'id');
   }
+  public function fotos()
+  {
+    return $this->hasMany(Lamtim_foto::class, 'idPelanggan', 'id');
+  }
 }

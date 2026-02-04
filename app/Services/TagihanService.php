@@ -347,7 +347,10 @@ class TagihanService
   {
     try {
       $where = [];
-      // filter bulan + status bayar
+      // filter tahun + bulan + status bayar
+      if (!empty($request->tahun)) {
+        $where['tahun'] = $request->tahun;
+      }
       if (!empty($request->bulan)) {
         $where['bulan'] = $request->bulan;
       }

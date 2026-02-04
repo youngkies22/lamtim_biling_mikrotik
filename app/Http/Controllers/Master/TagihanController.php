@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Repositories\TagihanRepository;
 use App\Services\TagihanService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 
 class TagihanController extends Controller
@@ -21,12 +23,39 @@ class TagihanController extends Controller
    */
   public function index()
   {
-    return view('content.tagihan.tagihan');
+    // Ambil data filter dari database dengan cache 1 bulan
+    $filterData = Cache::remember('tagihan_filter_data', now()->addMonth(), function () {
+      $tahun = DB::table('lamtim_tagihans')
+        ->select('tahun')
+        ->distinct()
+        ->orderBy('tahun', 'desc')
+        ->pluck('tahun')
+        ->toArray();
+
+      $bulan = DB::table('lamtim_tagihans')
+        ->select('bulan')
+        ->distinct()
+        ->orderBy('bulan', 'asc')
+        ->pluck('bulan')
+        ->toArray();
+
+      return [
+        'tahun' => $tahun,
+        'bulan' => $bulan
+      ];
+    });
+
+    return view('content.tagihan.tagihan', compact('filterData'));
   }
 
   public function json(Request $request)
   {
     return $this->service->getDatatablesJson($request);
+  }
+
+  public function generate()
+  {
+    return view('content.tagihan.generate');
   }
 
   public function generateTagihanBulanan()

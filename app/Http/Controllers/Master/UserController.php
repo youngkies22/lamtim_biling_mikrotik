@@ -110,6 +110,15 @@ class UserController extends Controller
   }
 
   /**
+   * Show foto page for user
+   */
+  public function showFoto(string $id)
+  {
+    $query = User::with('fotos')->find(decrypt($id));
+    return view('content.user.foto', compact('id', 'query'));
+  }
+
+  /**
    * Show the form for editing the specified resource.
    */
   public function edit(string $id)
@@ -204,47 +213,59 @@ class UserController extends Controller
     $with = [
       'user_detail:id,idUser,idArea,statusIsolir,tglDafatar,tglJatuhTempo,statusPpn,statusTagihan,jenisBayar,googleMap,js,identitas,noIdentitas,alamat,keterangan',
       'user_mikrotik.mikrotik:id,nama',
-      'user_mikrotik.paket:id,nama'
+      'user_mikrotik.paket:id,nama',
+      'fotos:id,idPelanggan,foto,extensi,ukuran,created_at'
     ];
     $where = ['idRole' => 5];
-    
+
     $query = \App\Models\User::select($columns)->with($with)->where($where)->get();
     $datatable = \Yajra\DataTables\Facades\DataTables::of($query);
-    
+
     // Tambahkan callback untuk kolom yang ada
     if (!empty($callbacks)) {
       foreach ($callbacks as $column => $callback) {
         $datatable->editColumn($column, $callback);
       }
     }
-    
+
     // Tambahkan kolom virtual
-    $datatable->addColumn('tglDafatar', function($row) {
+    $datatable->addColumn('tglDafatar', function ($row) {
       return $row->user_detail ? Carbon::parse($row->user_detail->tglDafatar)->format('d-m-Y') : '-';
     });
-    
-    $datatable->addColumn('mikrotik', function($row) {
+
+    $datatable->addColumn('mikrotik', function ($row) {
       if ($row->user_mikrotik && $row->user_mikrotik->mikrotik) {
         return $row->user_mikrotik->mikrotik->nama ?? '-';
       }
       return '<span class="text-muted">-</span>';
     });
-    
-    $datatable->addColumn('paket', function($row) {
+
+    $datatable->addColumn('paket', function ($row) {
       if ($row->user_mikrotik && $row->user_mikrotik->paket) {
         return $row->user_mikrotik->paket->nama ?? '-';
       }
       return '<span class="text-muted">-</span>';
     });
-    
-    $datatable->addColumn('googleMap', function($row) {
+
+    $datatable->addColumn('googleMap', function ($row) {
       if ($row->user_detail && $row->user_detail->googleMap) {
         return '<a href="' . e($row->user_detail->googleMap) . '" target="_blank" class="btn btn-sm btn-outline-primary"><i class="mdi mdi-map-marker"></i> Lihat</a>';
       }
       return '<span class="text-muted">-</span>';
     });
-    
-    return $datatable->rawColumns(['mikrotik', 'paket', 'googleMap'])->make(true);
+
+    $datatable->addColumn('foto', function ($row) {
+      $hasFoto = $row->fotos && $row->fotos->count() > 0;
+      $encryptedId = encrypt($row->id);
+      if ($hasFoto) {
+        return '<a href="/user/' . e($encryptedId) . '/foto" class="btn btn-sm btn-primary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">
+          <i class="mdi mdi-camera"></i>
+        </a>';
+      }
+      return '<span class="text-muted">-</span>';
+    });
+
+    return $datatable->rawColumns(['mikrotik', 'paket', 'googleMap', 'foto'])->make(true);
   }
 
   #mapping -------------------------------------------------------------------------------------------
