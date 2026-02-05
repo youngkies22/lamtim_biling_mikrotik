@@ -294,8 +294,6 @@
         <p><strong>Type:</strong> ${infoData.type}</p>
         ${infoData.port ? `<p><strong>Port:</strong> ${infoData.port}</p>` : ''}
         ${infoData.portSisa ? `<p><strong>Port Sisa:</strong> ${infoData.portSisa}</p>` : ''}
-        ${infoData.portOlt ? `<p><strong>Port OLT:</strong> ${infoData.portOlt}</p>` : ''}
-        ${infoData.portOdc ? `<p><strong>Port ODC:</strong> ${infoData.portOdc}</p>` : ''}
       </div>
     `;
 

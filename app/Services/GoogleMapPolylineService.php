@@ -165,27 +165,151 @@ class GoogleMapPolylineService
             'created_by' => Auth::id(),
         ];
 
-        // Set relasi berdasarkan tipe (optional - koordinat sudah cukup)
-        if ($tipe === 'odc_to_odp') {
-            $polylineData['id_odc_from'] = $data['id_odc_from'] ?? null;
-            $polylineData['id_odp_to'] = $data['id_odp_to'] ?? null;
-        } elseif ($tipe === 'odp_to_odp') {
-            $polylineData['id_odp_from'] = $data['id_odp_from'] ?? null;
-            $polylineData['id_odp_to'] = $data['id_odp_to'] ?? null;
-        } elseif ($tipe === 'odp_to_user') {
-            $polylineData['id_odp_from'] = $data['id_odp_from'] ?? null;
-            $polylineData['id_user'] = $data['id_user'] ?? null;
-        }
-
-        // Store marker IDs if provided
+        // Get marker information if provided
+        $markerFrom = null;
+        $markerTo = null;
+        
         if (isset($data['marker_from_id'])) {
+            $markerFrom = \App\Models\Lamtim_google_map_marker::find($data['marker_from_id']);
             $polylineData['marker_from_id'] = $data['marker_from_id'];
         }
+        
         if (isset($data['marker_to_id'])) {
+            $markerTo = \App\Models\Lamtim_google_map_marker::find($data['marker_to_id']);
             $polylineData['marker_to_id'] = $data['marker_to_id'];
         }
 
-        return Lamtim_google_map_polyline::create($polylineData);
+        // Auto-detect and set relations based on markers
+        if ($markerFrom && $markerTo) {
+            if ($tipe === 'odc_to_odp') {
+                // Handle both directions: ODC to ODP or ODP to ODC
+                if ($markerFrom->tipe === 'odc' && $markerTo->tipe === 'odp') {
+                    $polylineData['id_odc_from'] = $markerFrom->ref_id;
+                    $polylineData['id_odp_to'] = $markerTo->ref_id;
+                } elseif ($markerFrom->tipe === 'odp' && $markerTo->tipe === 'odc') {
+                    // Reverse direction: swap them
+                    $polylineData['id_odc_from'] = $markerTo->ref_id;
+                    $polylineData['id_odp_to'] = $markerFrom->ref_id;
+                }
+            } elseif ($tipe === 'odp_to_odp') {
+                if ($markerFrom->tipe === 'odp' && $markerTo->tipe === 'odp') {
+                    $polylineData['id_odp_from'] = $markerFrom->ref_id;
+                    $polylineData['id_odp_to'] = $markerTo->ref_id;
+                }
+            } elseif ($tipe === 'odp_to_user') {
+                if ($markerFrom->tipe === 'odp' && $markerTo->tipe === 'user') {
+                    $polylineData['id_odp_from'] = $markerFrom->ref_id;
+                    $polylineData['id_user'] = $markerTo->ref_id;
+                } elseif ($markerFrom->tipe === 'user' && $markerTo->tipe === 'odp') {
+                    // Reverse direction: swap them
+                    $polylineData['id_odp_from'] = $markerTo->ref_id;
+                    $polylineData['id_user'] = $markerFrom->ref_id;
+                }
+            }
+        } else {
+            // Fallback to manual IDs if provided
+            if ($tipe === 'odc_to_odp') {
+                $polylineData['id_odc_from'] = $data['id_odc_from'] ?? null;
+                $polylineData['id_odp_to'] = $data['id_odp_to'] ?? null;
+            } elseif ($tipe === 'odp_to_odp') {
+                $polylineData['id_odp_from'] = $data['id_odp_from'] ?? null;
+                $polylineData['id_odp_to'] = $data['id_odp_to'] ?? null;
+            } elseif ($tipe === 'odp_to_user') {
+                $polylineData['id_odp_from'] = $data['id_odp_from'] ?? null;
+                $polylineData['id_user'] = $data['id_user'] ?? null;
+            }
+        }
+
+        DB::beginTransaction();
+        try {
+            // Create the polyline
+            $polyline = Lamtim_google_map_polyline::create($polylineData);
+
+            // Decrease ports based on connection type
+            if ($tipe === 'odc_to_odp' && isset($polylineData['id_odc_from'])) {
+                // Decrease portSisa in ODC
+                $odc = \App\Models\Lamtim_odc::find($polylineData['id_odc_from']);
+                if ($odc && $odc->portSisa > 0) {
+                    $odc->portSisa = max(0, $odc->portSisa - 1);
+                    $odc->save();
+                    
+                    // Update marker's extra_data to reflect new portSisa
+                    $marker = \App\Models\Lamtim_google_map_marker::where('tipe', 'odc')
+                        ->where('ref_id', $odc->id)
+                        ->first();
+                    if ($marker && $marker->extra_data) {
+                        $extraData = $marker->extra_data;
+                        $extraData['portSisa'] = $odc->portSisa;
+                        $extraData['port'] = $odc->port;
+                        $extraData['portOlt'] = $odc->portOlt;
+                        $marker->update(['extra_data' => $extraData]);
+                    }
+                }
+            } elseif ($tipe === 'odp_to_odp' && isset($polylineData['id_odp_from']) && isset($polylineData['id_odp_to'])) {
+                // Decrease portSisa in both ODPs
+                $odpFrom = \App\Models\Lamtim_odp::find($polylineData['id_odp_from']);
+                if ($odpFrom && $odpFrom->portSisa > 0) {
+                    $odpFrom->portSisa = max(0, $odpFrom->portSisa - 1);
+                    $odpFrom->save();
+                    
+                    // Update marker's extra_data
+                    $markerFrom = \App\Models\Lamtim_google_map_marker::where('tipe', 'odp')
+                        ->where('ref_id', $odpFrom->id)
+                        ->first();
+                    if ($markerFrom && $markerFrom->extra_data) {
+                        $extraDataFrom = $markerFrom->extra_data;
+                        $extraDataFrom['portSisa'] = $odpFrom->portSisa;
+                        $extraDataFrom['port'] = $odpFrom->port;
+                        $extraDataFrom['portOdc'] = $odpFrom->portOdc;
+                        $markerFrom->update(['extra_data' => $extraDataFrom]);
+                    }
+                }
+                
+                $odpTo = \App\Models\Lamtim_odp::find($polylineData['id_odp_to']);
+                if ($odpTo && $odpTo->portSisa > 0) {
+                    $odpTo->portSisa = max(0, $odpTo->portSisa - 1);
+                    $odpTo->save();
+                    
+                    // Update marker's extra_data
+                    $markerTo = \App\Models\Lamtim_google_map_marker::where('tipe', 'odp')
+                        ->where('ref_id', $odpTo->id)
+                        ->first();
+                    if ($markerTo && $markerTo->extra_data) {
+                        $extraDataTo = $markerTo->extra_data;
+                        $extraDataTo['portSisa'] = $odpTo->portSisa;
+                        $extraDataTo['port'] = $odpTo->port;
+                        $extraDataTo['portOdc'] = $odpTo->portOdc;
+                        $markerTo->update(['extra_data' => $extraDataTo]);
+                    }
+                }
+            } elseif ($tipe === 'odp_to_user' && isset($polylineData['id_odp_from'])) {
+                // Decrease portSisa in ODP
+                $odp = \App\Models\Lamtim_odp::find($polylineData['id_odp_from']);
+                if ($odp && $odp->portSisa > 0) {
+                    $odp->portSisa = max(0, $odp->portSisa - 1);
+                    $odp->save();
+                    
+                    // Update marker's extra_data
+                    $marker = \App\Models\Lamtim_google_map_marker::where('tipe', 'odp')
+                        ->where('ref_id', $odp->id)
+                        ->first();
+                    if ($marker && $marker->extra_data) {
+                        $extraData = $marker->extra_data;
+                        $extraData['portSisa'] = $odp->portSisa;
+                        $extraData['port'] = $odp->port;
+                        $extraData['portOdc'] = $odp->portOdc;
+                        $marker->update(['extra_data' => $extraData]);
+                    }
+                }
+            }
+
+            DB::commit();
+            return $polyline;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to save polyline: ' . $e->getMessage());
+            throw $e;
+        }
     }
 
     /**
@@ -212,7 +336,100 @@ class GoogleMapPolylineService
             return false;
         }
 
-        return $polyline->delete();
+        DB::beginTransaction();
+        try {
+            $tipe = $polyline->tipe;
+            
+            // Restore ports when deleting polyline
+            if ($tipe === 'odc_to_odp' && $polyline->id_odc_from) {
+                // Restore portSisa in ODC
+                $odc = \App\Models\Lamtim_odc::find($polyline->id_odc_from);
+                if ($odc) {
+                    $odc->portSisa = min($odc->port, $odc->portSisa + 1);
+                    $odc->save();
+                    
+                    // Update marker's extra_data
+                    $marker = \App\Models\Lamtim_google_map_marker::where('tipe', 'odc')
+                        ->where('ref_id', $odc->id)
+                        ->first();
+                    if ($marker && $marker->extra_data) {
+                        $extraData = $marker->extra_data;
+                        $extraData['portSisa'] = $odc->portSisa;
+                        $extraData['port'] = $odc->port;
+                        $extraData['portOlt'] = $odc->portOlt;
+                        $marker->update(['extra_data' => $extraData]);
+                    }
+                }
+            } elseif ($tipe === 'odp_to_odp') {
+                // Restore portSisa in both ODPs
+                if ($polyline->id_odp_from) {
+                    $odpFrom = \App\Models\Lamtim_odp::find($polyline->id_odp_from);
+                    if ($odpFrom) {
+                        $odpFrom->portSisa = min($odpFrom->port, $odpFrom->portSisa + 1);
+                        $odpFrom->save();
+                        
+                        // Update marker's extra_data
+                        $markerFrom = \App\Models\Lamtim_google_map_marker::where('tipe', 'odp')
+                            ->where('ref_id', $odpFrom->id)
+                            ->first();
+                        if ($markerFrom && $markerFrom->extra_data) {
+                            $extraDataFrom = $markerFrom->extra_data;
+                            $extraDataFrom['portSisa'] = $odpFrom->portSisa;
+                            $extraDataFrom['port'] = $odpFrom->port;
+                            $extraDataFrom['portOdc'] = $odpFrom->portOdc;
+                            $markerFrom->update(['extra_data' => $extraDataFrom]);
+                        }
+                    }
+                }
+                
+                if ($polyline->id_odp_to) {
+                    $odpTo = \App\Models\Lamtim_odp::find($polyline->id_odp_to);
+                    if ($odpTo) {
+                        $odpTo->portSisa = min($odpTo->port, $odpTo->portSisa + 1);
+                        $odpTo->save();
+                        
+                        // Update marker's extra_data
+                        $markerTo = \App\Models\Lamtim_google_map_marker::where('tipe', 'odp')
+                            ->where('ref_id', $odpTo->id)
+                            ->first();
+                        if ($markerTo && $markerTo->extra_data) {
+                            $extraDataTo = $markerTo->extra_data;
+                            $extraDataTo['portSisa'] = $odpTo->portSisa;
+                            $extraDataTo['port'] = $odpTo->port;
+                            $extraDataTo['portOdc'] = $odpTo->portOdc;
+                            $markerTo->update(['extra_data' => $extraDataTo]);
+                        }
+                    }
+                }
+            } elseif ($tipe === 'odp_to_user' && $polyline->id_odp_from) {
+                // Restore portSisa in ODP
+                $odp = \App\Models\Lamtim_odp::find($polyline->id_odp_from);
+                if ($odp) {
+                    $odp->portSisa = min($odp->port, $odp->portSisa + 1);
+                    $odp->save();
+                    
+                    // Update marker's extra_data
+                    $marker = \App\Models\Lamtim_google_map_marker::where('tipe', 'odp')
+                        ->where('ref_id', $odp->id)
+                        ->first();
+                    if ($marker && $marker->extra_data) {
+                        $extraData = $marker->extra_data;
+                        $extraData['portSisa'] = $odp->portSisa;
+                        $extraData['port'] = $odp->port;
+                        $extraData['portOdc'] = $odp->portOdc;
+                        $marker->update(['extra_data' => $extraData]);
+                    }
+                }
+            }
+
+            $deleted = $polyline->delete();
+            DB::commit();
+            return $deleted;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to delete polyline: ' . $e->getMessage());
+            throw $e;
+        }
     }
 
     /**
@@ -294,6 +511,103 @@ class GoogleMapPolylineService
      */
     public function clearAll(): int
     {
-        return Lamtim_google_map_polyline::truncate() ? Lamtim_google_map_polyline::count() : 0;
+        DB::beginTransaction();
+        try {
+            // Get all polylines before deleting
+            $polylines = Lamtim_google_map_polyline::all();
+            
+            // Restore ports for all polylines
+            foreach ($polylines as $polyline) {
+                $tipe = $polyline->tipe;
+                
+                if ($tipe === 'odc_to_odp' && $polyline->id_odc_from) {
+                    $odc = \App\Models\Lamtim_odc::find($polyline->id_odc_from);
+                    if ($odc) {
+                        $odc->portSisa = min($odc->port, $odc->portSisa + 1);
+                        $odc->save();
+                        
+                        // Update marker's extra_data
+                        $marker = \App\Models\Lamtim_google_map_marker::where('tipe', 'odc')
+                            ->where('ref_id', $odc->id)
+                            ->first();
+                        if ($marker && $marker->extra_data) {
+                            $extraData = $marker->extra_data;
+                            $extraData['portSisa'] = $odc->portSisa;
+                            $extraData['port'] = $odc->port;
+                            $extraData['portOlt'] = $odc->portOlt;
+                            $marker->update(['extra_data' => $extraData]);
+                        }
+                    }
+                } elseif ($tipe === 'odp_to_odp') {
+                    if ($polyline->id_odp_from) {
+                        $odpFrom = \App\Models\Lamtim_odp::find($polyline->id_odp_from);
+                        if ($odpFrom) {
+                            $odpFrom->portSisa = min($odpFrom->port, $odpFrom->portSisa + 1);
+                            $odpFrom->save();
+                            
+                            // Update marker's extra_data
+                            $markerFrom = \App\Models\Lamtim_google_map_marker::where('tipe', 'odp')
+                                ->where('ref_id', $odpFrom->id)
+                                ->first();
+                            if ($markerFrom && $markerFrom->extra_data) {
+                                $extraDataFrom = $markerFrom->extra_data;
+                                $extraDataFrom['portSisa'] = $odpFrom->portSisa;
+                                $extraDataFrom['port'] = $odpFrom->port;
+                                $extraDataFrom['portOdc'] = $odpFrom->portOdc;
+                                $markerFrom->update(['extra_data' => $extraDataFrom]);
+                            }
+                        }
+                    }
+                    if ($polyline->id_odp_to) {
+                        $odpTo = \App\Models\Lamtim_odp::find($polyline->id_odp_to);
+                        if ($odpTo) {
+                            $odpTo->portSisa = min($odpTo->port, $odpTo->portSisa + 1);
+                            $odpTo->save();
+                            
+                            // Update marker's extra_data
+                            $markerTo = \App\Models\Lamtim_google_map_marker::where('tipe', 'odp')
+                                ->where('ref_id', $odpTo->id)
+                                ->first();
+                            if ($markerTo && $markerTo->extra_data) {
+                                $extraDataTo = $markerTo->extra_data;
+                                $extraDataTo['portSisa'] = $odpTo->portSisa;
+                                $extraDataTo['port'] = $odpTo->port;
+                                $extraDataTo['portOdc'] = $odpTo->portOdc;
+                                $markerTo->update(['extra_data' => $extraDataTo]);
+                            }
+                        }
+                    }
+                } elseif ($tipe === 'odp_to_user' && $polyline->id_odp_from) {
+                    $odp = \App\Models\Lamtim_odp::find($polyline->id_odp_from);
+                    if ($odp) {
+                        $odp->portSisa = min($odp->port, $odp->portSisa + 1);
+                        $odp->save();
+                        
+                        // Update marker's extra_data
+                        $marker = \App\Models\Lamtim_google_map_marker::where('tipe', 'odp')
+                            ->where('ref_id', $odp->id)
+                            ->first();
+                        if ($marker && $marker->extra_data) {
+                            $extraData = $marker->extra_data;
+                            $extraData['portSisa'] = $odp->portSisa;
+                            $extraData['port'] = $odp->port;
+                            $extraData['portOdc'] = $odp->portOdc;
+                            $marker->update(['extra_data' => $extraData]);
+                        }
+                    }
+                }
+            }
+            
+            // Delete all polylines
+            $count = Lamtim_google_map_polyline::count();
+            Lamtim_google_map_polyline::truncate();
+            
+            DB::commit();
+            return $count;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Failed to clear all polylines: ' . $e->getMessage());
+            throw $e;
+        }
     }
 }

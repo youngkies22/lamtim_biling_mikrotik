@@ -500,7 +500,7 @@
 
     let isDrawing = false;
     let isAddingMarker = false;
-    let drawingState = { type: 'custom', path: [], polyline: null, tempMarkers: [] };
+    let drawingState = { type: 'custom', path: [], polyline: null, tempMarkers: [], fromMarker: null, toMarker: null };
 
     const mapCenter = { lat: parseFloat("{{ $mapCenter['latitude'] }}"), lng: parseFloat("{{ $mapCenter['longitude'] }}") };
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -521,6 +521,16 @@
 
         map.addListener('click', (e) => {
           if (isDrawing) {
+            // Try to detect if click is near a marker first
+            const nearestMarker = findNearestMarker(e.latLng);
+            if (nearestMarker) {
+              // Track marker connection
+              if (drawingState.path.length === 0) {
+                drawingState.fromMarker = nearestMarker;
+              } else {
+                drawingState.toMarker = nearestMarker;
+              }
+            }
             addDrawingPoint(e.latLng);
           } else if (isAddingMarker) {
             createMarkerAtPosition(e.latLng);
@@ -647,6 +657,14 @@
 
       marker.addListener('click', () => {
         if (isDrawing) {
+          // Track which marker is being connected
+          if (drawingState.path.length === 0) {
+            // First point - this is the "from" marker
+            drawingState.fromMarker = { id: data.id, type: data.tipe, ref_id: data.ref_id || null };
+          } else {
+            // Last point - this is the "to" marker
+            drawingState.toMarker = { id: data.id, type: data.tipe, ref_id: data.ref_id || null };
+          }
           // Add marker position to drawing path
           addDrawingPoint(marker.getPosition());
         } else {
@@ -676,7 +694,6 @@
         content += `<p><strong>Nama:</strong> ${data.nama}</p>`;
         content += `<p><strong>Port:</strong> ${ed.port ?? '-'}</p>`;
         content += `<p><strong>Port Sisa:</strong> ${ed.portSisa ?? '-'}</p>`;
-        content += `<p><strong>Port OLT:</strong> ${ed.portOlt ?? '-'}</p>`;
         content += `<p><strong>Total ODP:</strong> ${ed.totalOdp ?? 0}</p>`;
         content += `<p><strong>Total User:</strong> ${ed.totalUser ?? 0}</p>`;
       } else if (data.tipe === 'odp') {
@@ -684,7 +701,6 @@
         content += `<p><strong>Nama:</strong> ${data.nama}</p>`;
         content += `<p><strong>Port:</strong> ${ed.port ?? '-'}</p>`;
         content += `<p><strong>Port Sisa:</strong> ${ed.portSisa ?? '-'}</p>`;
-        content += `<p><strong>Port ODC:</strong> ${ed.portOdc ?? '-'}</p>`;
         content += `<p><strong>Total User:</strong> ${ed.totalUser ?? 0}</p>`;
       } else if (data.tipe === 'user') {
         // User Info Window
@@ -1081,6 +1097,21 @@
     function addDrawingPoint(latLng) {
       drawingState.path.push({ lat: latLng.lat(), lng: latLng.lng() });
 
+      // Try to detect if this point is near a marker (if not already set)
+      if (drawingState.path.length === 1 && !drawingState.fromMarker) {
+        // Check if first point is near any marker
+        const nearestMarker = findNearestMarker(latLng);
+        if (nearestMarker) {
+          drawingState.fromMarker = nearestMarker;
+        }
+      } else if (drawingState.path.length > 1 && !drawingState.toMarker) {
+        // Check if last point is near any marker
+        const nearestMarker = findNearestMarker(latLng);
+        if (nearestMarker) {
+          drawingState.toMarker = nearestMarker;
+        }
+      }
+
       // Update polyline preview (no temp markers - cleaner look)
       if (drawingState.polyline) drawingState.polyline.setMap(null);
       drawingState.polyline = new google.maps.Polyline({
@@ -1099,6 +1130,29 @@
       }
 
       updateWaypointCount();
+    }
+
+    function findNearestMarker(latLng) {
+      const threshold = 0.0001; // ~11 meters in degrees
+      let nearest = null;
+      let minDistance = Infinity;
+
+      markers.forEach(marker => {
+        const markerPos = marker.getPosition();
+        
+        // Calculate distance in degrees (simple approximation)
+        const latDiff = Math.abs(latLng.lat() - markerPos.lat());
+        const lngDiff = Math.abs(latLng.lng() - markerPos.lng());
+        const distanceInDegrees = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+        
+        if (distanceInDegrees < threshold && distanceInDegrees < minDistance) {
+          minDistance = distanceInDegrees;
+          const data = marker.markerData;
+          nearest = { id: data.id, type: data.tipe, ref_id: data.ref_id || null };
+        }
+      });
+
+      return nearest;
     }
 
     function undoDrawingPoint() {
@@ -1130,7 +1184,7 @@
       document.getElementById('drawing-mode').style.display = 'none';
       document.getElementById('drawing-banner').style.display = 'none';
 
-      drawingState = { type: 'custom', path: [], polyline: null, tempMarkers: [] };
+      drawingState = { type: 'custom', path: [], polyline: null, tempMarkers: [], fromMarker: null, toMarker: null };
     }
 
     function clearTempDrawing() {
@@ -1140,12 +1194,51 @@
     async function savePolyline() {
       if (drawingState.path.length < 2) { alert('Minimal 2 titik!'); return; }
 
+      // Auto-detect connection type based on markers
+      let detectedType = 'custom';
+      let markerFromId = null;
+      let markerToId = null;
+
+      if (drawingState.fromMarker && drawingState.toMarker) {
+        const fromType = drawingState.fromMarker.type;
+        const toType = drawingState.toMarker.type;
+
+        if ((fromType === 'odc' && toType === 'odp') || (fromType === 'odp' && toType === 'odc')) {
+          // Handle both directions: ODC to ODP or ODP to ODC
+          detectedType = 'odc_to_odp';
+          // Always set ODC as from and ODP as to
+          if (fromType === 'odc') {
+            markerFromId = drawingState.fromMarker.id;
+            markerToId = drawingState.toMarker.id;
+          } else {
+            // Reverse: ODP to ODC, swap them
+            markerFromId = drawingState.toMarker.id;
+            markerToId = drawingState.fromMarker.id;
+          }
+        } else if (fromType === 'odp' && toType === 'odp') {
+          detectedType = 'odp_to_odp';
+          markerFromId = drawingState.fromMarker.id;
+          markerToId = drawingState.toMarker.id;
+        } else if (fromType === 'odp' && toType === 'user') {
+          detectedType = 'odp_to_user';
+          markerFromId = drawingState.fromMarker.id;
+          markerToId = drawingState.toMarker.id;
+        } else if (fromType === 'user' && toType === 'odp') {
+          // Reverse: User to ODP, swap them
+          detectedType = 'odp_to_user';
+          markerFromId = drawingState.toMarker.id;
+          markerToId = drawingState.fromMarker.id;
+        }
+      }
+
       const data = {
-        tipe: drawingState.type,
+        tipe: detectedType,
         koordinat: drawingState.path,
         warna: document.getElementById('polyline-color').value,
         ketebalan: parseInt(document.getElementById('polyline-weight').value),
-        animasi: true
+        animasi: true,
+        marker_from_id: markerFromId,
+        marker_to_id: markerToId
       };
 
       try {

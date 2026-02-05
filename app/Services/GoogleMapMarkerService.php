@@ -14,6 +14,7 @@ class GoogleMapMarkerService
 {
     /**
      * Get all visible markers
+     * Always fetch fresh portSisa from source tables (ODC/ODP) to avoid stale cache
      */
     public function getAll(): array
     {
@@ -22,7 +23,46 @@ class GoogleMapMarkerService
             ->orderBy('nama')
             ->get();
 
-        return $markers->map(fn($m) => $m->toMapData())->toArray();
+        // Get all ODC and ODP IDs to batch load
+        $odcIds = $markers->where('tipe', 'odc')->pluck('ref_id')->filter()->unique()->toArray();
+        $odpIds = $markers->where('tipe', 'odp')->pluck('ref_id')->filter()->unique()->toArray();
+        
+        // Batch load ODC and ODP data
+        $odcs = Lamtim_odc::whereIn('id', $odcIds)->get()->keyBy('id');
+        $odps = Lamtim_odp::whereIn('id', $odpIds)->get()->keyBy('id');
+
+        return $markers->map(function($m) use ($odcs, $odps) {
+            $data = $m->toMapData();
+            
+            // Update portSisa from source table (not from cached extra_data)
+            if ($m->ref_id) {
+                if ($m->tipe === 'odc' && isset($odcs[$m->ref_id])) {
+                    $odc = $odcs[$m->ref_id];
+                    if (isset($data['extra_data'])) {
+                        $extraData = $data['extra_data'];
+                        $extraData['portSisa'] = $odc->portSisa;
+                        $extraData['port'] = $odc->port;
+                        $extraData['portOlt'] = $odc->portOlt;
+                        $data['extra_data'] = $extraData;
+                        // Update the marker's extra_data in database
+                        $m->update(['extra_data' => $extraData]);
+                    }
+                } elseif ($m->tipe === 'odp' && isset($odps[$m->ref_id])) {
+                    $odp = $odps[$m->ref_id];
+                    if (isset($data['extra_data'])) {
+                        $extraData = $data['extra_data'];
+                        $extraData['portSisa'] = $odp->portSisa;
+                        $extraData['port'] = $odp->port;
+                        $extraData['portOdc'] = $odp->portOdc;
+                        $data['extra_data'] = $extraData;
+                        // Update the marker's extra_data in database
+                        $m->update(['extra_data' => $extraData]);
+                    }
+                }
+            }
+            
+            return $data;
+        })->toArray();
     }
 
     /**
