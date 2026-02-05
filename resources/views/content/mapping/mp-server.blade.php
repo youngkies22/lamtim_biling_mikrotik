@@ -388,23 +388,24 @@
     return polyline;
   }
 
-  const latitude = -5.129336074668655;
-  const longitude = 105.6682460257199;
+  const latitude = "{{ config('services.mapping.latitude-server') }}";
+  const longitude = "{{ config('services.mapping.longitude-server') }}";
+  const centerLatLng = [parseFloat(latitude), parseFloat(longitude)];
 
-  const map = L.map('map').setView([latitude, longitude], 12);
+  const map = L.map('map').setView(centerLatLng, 12);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
   // Marker
-  L.marker([latitude, longitude])
+  L.marker(centerLatLng)
       .addTo(map)
       .bindPopup('Server Kang Wifi')
       .openPopup();
 
-  // Area lingkup (radius 1000 meter)
-  L.circle([latitude, longitude], {
+  // Area lingkup (radius 500 meter)
+  L.circle(centerLatLng, {
       radius: 500,
       color: 'blue',
       fillColor: '#3f8df7',
@@ -412,7 +413,7 @@
   }).addTo(map);
 
   //load odc odp
-  const centerLatLng = [latitude, longitude]; // titik server pusat
+  // centerLatLng sudah didefinisikan di atas
   let odcMap = {}; // untuk menyimpan ODC by id
   let odpMap = {}; // untuk menyimpan ODP by id
   let odpPending = []; // ODP yang perlu digambar garis ke ODP lain
