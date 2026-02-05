@@ -546,6 +546,7 @@
         <div class="filter-panel-toggles">
           <a href="#" class="fp-toggle fp-on" id="fp-toggle-distance">Jarak: ON</a>
           <a href="#" class="fp-toggle" id="fp-toggle-name">Nama: OFF</a>
+          <a href="#" class="fp-toggle" id="fp-toggle-user-name">Pelanggan: OFF</a>
         </div>
       `;
 
@@ -592,19 +593,34 @@
         }
       });
 
-      // Name toggle
+      // Name toggle (ODC & ODP)
       const fpNameBtn = container.querySelector('#fp-toggle-name');
       fpNameBtn.addEventListener('click', function(e) {
         e.preventDefault();
         if (typeof window.toggleNameLabels === 'function') {
           window.toggleNameLabels();
         }
-        // Sync state
         if (nameLabelsVisible) {
           this.textContent = 'Nama: ON';
           this.classList.add('fp-on');
         } else {
           this.textContent = 'Nama: OFF';
+          this.classList.remove('fp-on');
+        }
+      });
+
+      // User name toggle (Pelanggan)
+      const fpUserNameBtn = container.querySelector('#fp-toggle-user-name');
+      fpUserNameBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (typeof window.toggleUserNameLabels === 'function') {
+          window.toggleUserNameLabels();
+        }
+        if (userNameLabelsVisible) {
+          this.textContent = 'Pelanggan: ON';
+          this.classList.add('fp-on');
+        } else {
+          this.textContent = 'Pelanggan: OFF';
           this.classList.remove('fp-on');
         }
       });
@@ -702,8 +718,10 @@ let odpPending = [];
 let allMarkers = []; // Simpan semua marker untuk filter
 let allPolylines = []; // Simpan semua polyline untuk filter
 let allDistanceLabels = []; // Simpan semua label jarak untuk filter
-let allNameLabels = []; // Simpan semua label nama untuk filter
-let nameLabelsVisible = false; // Status tampilan label nama
+let allNameLabels = []; // Simpan semua label nama untuk filter (ODC & ODP)
+let allUserNameLabels = []; // Simpan label nama user/pelanggan
+let nameLabelsVisible = false; // Status tampilan label nama ODC/ODP
+let userNameLabelsVisible = false; // Status tampilan label nama pelanggan
 let distanceLabelsVisible = true; // Status tampilan label jarak
 
 // Fungsi untuk filter tampilan
@@ -786,23 +804,35 @@ window.filterMap = function(type) {
     }
   });
 
-  // Filter name labels
+  // Filter name labels (ODC & ODP)
   allNameLabels.forEach(label => {
     const labelType = label.options.type;
     let shouldShow = false;
-    
+
     if (type === 'all') {
       shouldShow = true;
     } else if (type === 'odc') {
       shouldShow = labelType === 'odc';
     } else if (type === 'odp') {
       shouldShow = labelType === 'odp';
-    } else if (type === 'user') {
-      shouldShow = labelType === 'user';
     }
-    
-    // Hanya tampilkan jika sesuai filter DAN name labels visible
+
     if (shouldShow && nameLabelsVisible) {
+      if (!map.hasLayer(label)) {
+        label.addTo(map);
+      }
+    } else {
+      if (map.hasLayer(label)) {
+        map.removeLayer(label);
+      }
+    }
+  });
+
+  // Filter user name labels (terpisah)
+  allUserNameLabels.forEach(label => {
+    let shouldShow = (type === 'all' || type === 'user');
+
+    if (shouldShow && userNameLabelsVisible) {
       if (!map.hasLayer(label)) {
         label.addTo(map);
       }
@@ -871,22 +901,27 @@ function tampilkanNamaLabel(position, nama, type = 'all') {
   })
   .setLatLng(position)
   .setContent(nama);
-  
-  // Simpan type untuk filter
+
   nameLabel.options.type = type;
-  allNameLabels.push(nameLabel);
-  
+
+  // Pisahkan array: user ke allUserNameLabels, sisanya ke allNameLabels
+  if (type === 'user') {
+    allUserNameLabels.push(nameLabel);
+  } else {
+    allNameLabels.push(nameLabel);
+  }
+
   return nameLabel;
 }
 
 
-// Fungsi untuk toggle show/hide nama
+// Toggle show/hide nama ODC & ODP
 window.toggleNameLabels = function() {
   nameLabelsVisible = !nameLabelsVisible;
-  
+
   const toggleBtn = document.getElementById('toggle-name');
   const labelText = document.getElementById('name-label-text');
-  
+
   if (nameLabelsVisible) {
     labelText.textContent = 'Sembunyikan';
     toggleBtn.classList.remove('btn-outline-secondary');
@@ -896,30 +931,64 @@ window.toggleNameLabels = function() {
     toggleBtn.classList.remove('btn-secondary');
     toggleBtn.classList.add('btn-outline-secondary');
   }
-  
-  // Update semua name labels berdasarkan status
+
+  // Sync fullscreen panel button
+  const fpBtn = document.getElementById('fp-toggle-name');
+  if (fpBtn) {
+    fpBtn.textContent = nameLabelsVisible ? 'Nama: ON' : 'Nama: OFF';
+    fpBtn.classList.toggle('fp-on', nameLabelsVisible);
+  }
+
+  const currentFilter = document.querySelector('[id^="filter-"].active')?.id?.replace('filter-', '') || 'all';
+
   allNameLabels.forEach(label => {
     if (nameLabelsVisible) {
-      // Tampilkan label jika sesuai dengan filter aktif
-      const currentFilter = document.querySelector('[id^="filter-"].active')?.id?.replace('filter-', '') || 'all';
       const labelType = label.options.type;
-      let shouldShow = false;
-      
-      if (currentFilter === 'all') {
-        shouldShow = true;
-      } else if (currentFilter === 'odc') {
-        shouldShow = labelType === 'odc';
-      } else if (currentFilter === 'odp') {
-        shouldShow = labelType === 'odp';
-      } else if (currentFilter === 'user') {
-        shouldShow = labelType === 'user';
-      }
-      
+      let shouldShow = (currentFilter === 'all') || (currentFilter === labelType);
       if (shouldShow && !map.hasLayer(label)) {
         label.addTo(map);
       }
     } else {
-      // Sembunyikan semua label
+      if (map.hasLayer(label)) {
+        map.removeLayer(label);
+      }
+    }
+  });
+}
+
+// Toggle show/hide nama Pelanggan (terpisah)
+window.toggleUserNameLabels = function() {
+  userNameLabelsVisible = !userNameLabelsVisible;
+
+  const toggleBtn = document.getElementById('toggle-user-name');
+  const labelText = document.getElementById('user-name-label-text');
+
+  if (userNameLabelsVisible) {
+    labelText.textContent = 'Sembunyikan';
+    toggleBtn.classList.remove('btn-outline-info');
+    toggleBtn.classList.add('btn-info');
+  } else {
+    labelText.textContent = 'Tampilkan';
+    toggleBtn.classList.remove('btn-info');
+    toggleBtn.classList.add('btn-outline-info');
+  }
+
+  // Sync fullscreen panel button
+  const fpBtn = document.getElementById('fp-toggle-user-name');
+  if (fpBtn) {
+    fpBtn.textContent = userNameLabelsVisible ? 'Pelanggan: ON' : 'Pelanggan: OFF';
+    fpBtn.classList.toggle('fp-on', userNameLabelsVisible);
+  }
+
+  const currentFilter = document.querySelector('[id^="filter-"].active')?.id?.replace('filter-', '') || 'all';
+
+  allUserNameLabels.forEach(label => {
+    if (userNameLabelsVisible) {
+      let shouldShow = (currentFilter === 'all' || currentFilter === 'user');
+      if (shouldShow && !map.hasLayer(label)) {
+        label.addTo(map);
+      }
+    } else {
       if (map.hasLayer(label)) {
         map.removeLayer(label);
       }
@@ -1048,6 +1117,12 @@ fetch(`/mapping/json/mapping/show/user`)
         <br>Paket: ${item.paket}`);
         allMarkers.push(marker);
 
+        // Tambahkan label nama user
+        const nameLabel = tampilkanNamaLabel(position, item.nama, 'user');
+        if (userNameLabelsVisible) {
+          nameLabel.addTo(map);
+        }
+
         // Jika ODP-nya sudah tersedia dengan animasi modern
         if (item.idOdp && odpMap[item.idOdp]) {
           const polyline = createAnimatedPolyline([odpMap[item.idOdp], position], {
@@ -1110,6 +1185,7 @@ fetch(`/mapping/json/mapping/show/user`)
     // Sync in-map toggle states after data loaded
     const fpDist = document.getElementById('fp-toggle-distance');
     const fpName = document.getElementById('fp-toggle-name');
+    const fpUserName = document.getElementById('fp-toggle-user-name');
     if (fpDist) {
       fpDist.textContent = distanceLabelsVisible ? 'Jarak: ON' : 'Jarak: OFF';
       fpDist.classList.toggle('fp-on', distanceLabelsVisible);
@@ -1117,6 +1193,10 @@ fetch(`/mapping/json/mapping/show/user`)
     if (fpName) {
       fpName.textContent = nameLabelsVisible ? 'Nama: ON' : 'Nama: OFF';
       fpName.classList.toggle('fp-on', nameLabelsVisible);
+    }
+    if (fpUserName) {
+      fpUserName.textContent = userNameLabelsVisible ? 'Pelanggan: ON' : 'Pelanggan: OFF';
+      fpUserName.classList.toggle('fp-on', userNameLabelsVisible);
     }
   })
   .catch(error => {
@@ -1161,6 +1241,9 @@ fetch(`/mapping/json/mapping/show/user`)
                     </button>
                     <button type="button" class="btn btn-outline-secondary" onclick="toggleNameLabels()" id="toggle-name" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important;">
                       <i class="mdi mdi-label"></i> <span id="name-label-text">Tampilkan</span> Nama
+                    </button>
+                    <button type="button" class="btn btn-outline-info" onclick="toggleUserNameLabels()" id="toggle-user-name" style="display: inline-block !important; visibility: visible !important; opacity: 1 !important;">
+                      <i class="mdi mdi-account-circle"></i> <span id="user-name-label-text">Tampilkan</span> Nama Pelanggan
                     </button>
                   </div>
                 </div>
