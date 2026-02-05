@@ -379,6 +379,12 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
   $(document).ready(function() {
     function loadSecretApi(idMikrotik) {
       const $secretSelect = $('#secretapi-select');
+
+      // Destroy select2 jika sudah diinisialisasi
+      if ($secretSelect.hasClass('select2-hidden-accessible')) {
+        $secretSelect.select2('destroy');
+      }
+
       $secretSelect.html('<option>Loading...</option>');
 
       $.get('/select/secret-api/' + idMikrotik, function(res) {
@@ -401,6 +407,14 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
           });
           $secretSelect.html(options);
 
+          // Inisialisasi Select2 dengan search
+          $secretSelect.select2({
+            placeholder: 'Pilih atau cari Secret'
+            , allowClear: true
+            , dropdownParent: $secretSelect.parent()
+            , width: '100%'
+          });
+
           // Jika ada secret yang sudah dipilih (selected), isi field-field terkait
           const selectedOption = $secretSelect.find('option:selected');
           if (selectedOption.length && selectedOption.val()) {
@@ -417,7 +431,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
         $secretSelect.html('<option value="">Gagal ambil data</option>');
       });
     }
-    $('#secretapi-select').on('change', function() {
+    // Event change untuk select2 (menggunakan event delegation karena select2 diinisialisasi dinamis)
+    $(document).on('change', '#secretapi-select', function() {
       const selected = $(this).find('option:selected');
 
       $('#id-api').val(selected.data('id') || '');
@@ -444,11 +459,14 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
         $('#manual-secret-api').removeClass('d-none');
 
         // Sembunyikan input API otomatis
-        $('#secretapi-select').addClass('d-none');
         $('#secret-mikrotip-api').addClass('d-none');
+
+        // Destroy select2 jika ada
+        if ($('#secretapi-select').hasClass('select2-hidden-accessible')) {
+          $('#secretapi-select').select2('destroy');
+        }
       } else if (aksi === '2') {
         // Tampilkan input API otomatis
-        $('#secretapi-select').removeClass('d-none');
         $('#secret-mikrotip-api').removeClass('d-none');
 
         // Sembunyikan input manual
@@ -983,8 +1001,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
             <div class="col-md-4 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <select name="secretapi" id="secretapi-select" class="form-select">
-                    <option value="">Pilih Secret </option>
+                  <select name="secretapi" id="secretapi-select" class="form-select select2">
+                    <option value="">Pilih Secret</option>
                   </select>
                   <label>Secret</label>
                 </div>
