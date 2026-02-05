@@ -290,6 +290,13 @@
 @endsection
 
 @section('page-script')
+@php
+// Prepare semua data PHP di luar JavaScript untuk menghindari auto-format issues
+$paketData = Helper::getPaketGrouped();
+$dariDbValue = $dariDb ?? '';
+$hasUserMikrotikValue = $hasUserMikrotik ?? false;
+$hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
+@endphp
 <script>
   // Perbaiki z-index dropdown saat dibuka - hanya z-index, jangan ubah position
   $(document).on('show.bs.dropdown', '.dropdown', function() {
@@ -377,10 +384,7 @@
       $.get('/select/secret-api/' + idMikrotik, function(res) {
 
         if (res.status) {
-          @php
-          $dariDb = $query - > user_mikrotik - > namaMikrotikUser ? ? '';
-          @endphp
-          let dariDb = @json($dariDb);
+          let dariDb = @json($dariDbValue);
 
           let options = '<option value="">Pilih Secret</option>';
           res.data.forEach(function(item) {
@@ -472,11 +476,7 @@
     // Inisialisasi: Load secret saat halaman pertama kali dimuat jika sudah ada mikrotik dan aksi = 2
     const idMikrotik = $('#idmikrotik').val();
     const aksi = $('select[name="aksi"]').val();
-    @if($query - > user_mikrotik ? - > id !== null)
-    const hasUserMikrotik = true;
-    @else
-    const hasUserMikrotik = false;
-    @endif
+    const hasUserMikrotik = @json($hasUserMikrotikValue);
 
     // Jika sudah ada mikrotik dipilih, aksi = 2 (API), dan sudah ada user_mikrotik
     if (idMikrotik && idMikrotik !== '00' && aksi === '2') {
@@ -641,7 +641,7 @@
   let odpPending = [];
 
   const userId = "{{ $id }}";
-  @if(!empty($query - > user_mikrotik ? - > namaMikrotikUser))
+  @if($hasNamaMikrotikUserValue)
   fetch(`/mapping/json/mapping/user/${userId}`)
     .then(response => response.json())
     .then(res => {

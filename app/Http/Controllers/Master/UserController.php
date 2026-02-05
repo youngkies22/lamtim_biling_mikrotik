@@ -291,8 +291,14 @@ class UserController extends Controller
    */
   public function editMapping($id)
   {
-    $query = User::with('user_mikrotik')->find(decrypt($id));
-    return view('content.mapping.mp-user', compact('id', 'query'));
+    $query = User::with(['user_mikrotik', 'user_detail'])->find(decrypt($id));
+    
+    // Prepare data untuk JavaScript (hindari PHP di blade)
+    $dariDb = $query->user_mikrotik->namaMikrotikUser ?? '';
+    $hasUserMikrotik = $query->user_mikrotik?->id !== null;
+    $hasNamaMikrotikUser = !empty($query->user_mikrotik?->namaMikrotikUser);
+    
+    return view('content.mapping.mp-user', compact('id', 'query', 'dariDb', 'hasUserMikrotik', 'hasNamaMikrotikUser'));
   }
 
   /**
