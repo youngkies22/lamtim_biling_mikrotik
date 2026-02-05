@@ -266,15 +266,19 @@
   }
 
   @keyframes pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: scale(1);
       opacity: 1;
     }
+
     50% {
       transform: scale(1.1);
       opacity: 0.8;
     }
   }
+
 </style>
 @endsection
 
@@ -319,7 +323,7 @@
 
   $(document).ready(function() {
     fixMenuZIndex();
-    
+
     // Update z-index saat menu dibuka/ditutup
     $(document).on('click', '.menu-toggle', function() {
       setTimeout(fixMenuZIndex, 50);
@@ -337,17 +341,17 @@
     // Observe semua menu-item
     $('.menu-item.menu-dropdown').each(function() {
       observer.observe(this, {
-        attributes: true,
-        attributeFilter: ['class']
+        attributes: true
+        , attributeFilter: ['class']
       });
     });
   });
+
 </script>
-<script>
 <script>
   const paketData = @json(Helper::getPaketGrouped());
 
-  document.getElementById('kategori').addEventListener('change', function () {
+  document.getElementById('kategori').addEventListener('change', function() {
     const kategoriId = this.value.toString(); // pastikan string
     const paketSelect = document.getElementById('paket');
     paketSelect.innerHTML = '<option value="00">Pilih</option>';
@@ -365,34 +369,34 @@
     // console.log('paketData[kategoriId]:', paketData[kategoriId]);
   });
 
-  $(document).ready(function () {
+  $(document).ready(function() {
     function loadSecretApi(idMikrotik) {
       const $secretSelect = $('#secretapi-select');
       $secretSelect.html('<option>Loading...</option>');
 
-      $.get('/select/secret-api/' + idMikrotik, function (res) {
+      $.get('/select/secret-api/' + idMikrotik, function(res) {
 
         if (res.status) {
           @php
-            $dariDb = $query->user_mikrotik->namaMikrotikUser ?? '';
+          $dariDb = $query - > user_mikrotik - > namaMikrotikUser ? ? '';
           @endphp
           let dariDb = @json($dariDb);
 
           let options = '<option value="">Pilih Secret</option>';
-          res.data.forEach(function (item) {
-           let selected = item.name === dariDb ? 'selected' : '';
+          res.data.forEach(function(item) {
+            let selected = item.name === dariDb ? 'selected' : '';
             options += '<option value="' + item.name + '" ' + selected +
-                     ' data-id="' + (item['.id'] || '') + '"' +
-                     ' data-service="' + (item.service || '') + '"' +
-                     ' data-profile="' + (item.profile || '') + '"' +
-                     ' data-password="' + (item.password || '') + '"' +
-                     ' data-local="' + (item['local-address'] || '') + '"' +
-                     ' data-remote="' + (item['remote-address'] || '') + '">' +
-                     item.name +
-                     '</option>';
+              ' data-id="' + (item['.id'] || '') + '"' +
+              ' data-service="' + (item.service || '') + '"' +
+              ' data-profile="' + (item.profile || '') + '"' +
+              ' data-password="' + (item.password || '') + '"' +
+              ' data-local="' + (item['local-address'] || '') + '"' +
+              ' data-remote="' + (item['remote-address'] || '') + '">' +
+              item.name +
+              '</option>';
           });
           $secretSelect.html(options);
-          
+
           // Jika ada secret yang sudah dipilih (selected), isi field-field terkait
           const selectedOption = $secretSelect.find('option:selected');
           if (selectedOption.length && selectedOption.val()) {
@@ -405,18 +409,18 @@
           $secretSelect.html('<option value="">Tidak ditemukan</option>');
           console.error(res.message);
         }
-      }).fail(function () {
+      }).fail(function() {
         $secretSelect.html('<option value="">Gagal ambil data</option>');
       });
     }
-    $('#secretapi-select').on('change', function () {
+    $('#secretapi-select').on('change', function() {
       const selected = $(this).find('option:selected');
 
       $('#id-api').val(selected.data('id') || '');
       $('#service-api').val(selected.data('service') || '');
       $('#profile-api').val(selected.data('profile') || '');
       $('#password-api').val(selected.data('password') || '');
-      
+
       // Trigger change untuk memastikan nilai ter-update
       $('#id-api').trigger('change');
       $('#service-api').trigger('change');
@@ -425,7 +429,7 @@
     });
 
     // Saat aksi berubah
-    $('select[name="aksi"]').on('change', function () {
+    $('select[name="aksi"]').on('change', function() {
       const aksi = $(this).val();
       const idMikrotik = $('#idmikrotik').val();
 
@@ -457,7 +461,7 @@
 
 
     // Saat server berubah
-    $('#idmikrotik').on('change', function () {
+    $('#idmikrotik').on('change', function() {
       const aksi = $('select[name="aksi"]').val();
       const idMikrotik = $(this).val();
       if (aksi === '2' && idMikrotik && idMikrotik !== '00') {
@@ -468,12 +472,12 @@
     // Inisialisasi: Load secret saat halaman pertama kali dimuat jika sudah ada mikrotik dan aksi = 2
     const idMikrotik = $('#idmikrotik').val();
     const aksi = $('select[name="aksi"]').val();
-    @if($query->user_mikrotik?->id !== null)
+    @if($query - > user_mikrotik ? - > id !== null)
     const hasUserMikrotik = true;
     @else
     const hasUserMikrotik = false;
     @endif
-    
+
     // Jika sudah ada mikrotik dipilih, aksi = 2 (API), dan sudah ada user_mikrotik
     if (idMikrotik && idMikrotik !== '00' && aksi === '2') {
       // Delay sedikit untuk memastikan DOM sudah ready
@@ -482,23 +486,23 @@
       }, 300);
     }
 
-    $('#submitMapping').click(function () {
+    $('#submitMapping').click(function() {
       const aksi = $('select[name="aksi"]').val();
 
       // Ambil data umum
       let formData = {
-        aksi: aksi,
-        kategori: $('#kategori').val(),
-        paket: $('#paket').val(),
-        idmikrotik: $('select[name="idmikrotik"]').val(),
-        nama: $('#nama').val(),
-        wa: $('#wa').val(),
-        odp: $('select[name="odp"]').val(), // Pastikan select ODP punya name="odp"
-        idd: $('#idd').val(),
-        latitude: $('#lat').val(),
-        longitude: $('#lng').val(),
-        port: $('#port').val(),
-      };
+        aksi: aksi
+        , kategori: $('#kategori').val()
+        , paket: $('#paket').val()
+        , idmikrotik: $('select[name="idmikrotik"]').val()
+        , nama: $('#nama').val()
+        , wa: $('#wa').val()
+        , odp: $('select[name="odp"]').val(), // Pastikan select ODP punya name="odp"
+        idd: $('#idd').val()
+        , latitude: $('#lat').val()
+        , longitude: $('#lng').val()
+        , port: $('#port').val()
+      , };
 
       if (aksi === '1') {
         // Ambil dari manual input
@@ -515,28 +519,27 @@
       }
 
       $.ajax({
-        url: '{{ route("user.mapping.store") }}',
-        type: 'POST',
-        data: formData,
-        headers: {
+        url: '{{ route("user.mapping.store") }}'
+        , type: 'POST'
+        , data: formData
+        , headers: {
           'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
-        success: function (response) {
-          toastr.success(response.message);
-        },
-        error: function (xhr) {
-          let message = 'Terjadi kesalahan.';
-        if (xhr.responseJSON && xhr.responseJSON.message) {
-          message = xhr.responseJSON.message;
         }
-        toastr.error(message);
+        , success: function(response) {
+          toastr.success(response.message);
+        }
+        , error: function(xhr) {
+          let message = 'Terjadi kesalahan.';
+          if (xhr.responseJSON && xhr.responseJSON.message) {
+            message = xhr.responseJSON.message;
+          }
+          toastr.error(message);
         }
       });
     });
 
 
   });
-
 
 </script>
 <script>
@@ -551,8 +554,8 @@
 
   // Tile layer dari OpenStreetMap
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 35,
-    attribution: '© OpenStreetMap contributors'
+    maxZoom: 35
+    , attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
   // Marker Server Pusat
@@ -564,23 +567,26 @@
   // Fungsi untuk membuat animated polyline modern dengan efek garis bergerak
   function createAnimatedPolyline(coordinates, options = {}) {
     const defaultOptions = {
-      color: '#3388ff',
-      weight: 3,
-      opacity: 0.85,
-      smoothFactor: 1
+      color: '#3388ff'
+      , weight: 3
+      , opacity: 0.85
+      , smoothFactor: 1
     };
-    
-    const finalOptions = { ...defaultOptions, ...options };
-    
+
+    const finalOptions = {
+      ...defaultOptions
+      , ...options
+    };
+
     // Buat polyline dengan dash array untuk efek animasi
     const polyline = L.polyline(coordinates, {
-      color: finalOptions.color,
-      weight: finalOptions.weight,
-      opacity: finalOptions.opacity,
-      smoothFactor: finalOptions.smoothFactor,
-      className: 'animated-polyline'
+      color: finalOptions.color
+      , weight: finalOptions.weight
+      , opacity: finalOptions.opacity
+      , smoothFactor: finalOptions.smoothFactor
+      , className: 'animated-polyline'
     });
-    
+
     // Tambahkan animasi setelah polyline ditambahkan ke map
     polyline.on('add', function() {
       const path = this._path;
@@ -589,7 +595,7 @@
         const dashLength = 15;
         const gapLength = 8;
         path.setAttribute('stroke-dasharray', `${dashLength},${gapLength}`);
-        
+
         // Buat animasi dengan menggunakan SVG animate
         const animate = document.createElementNS('http://www.w3.org/2000/svg', 'animate');
         animate.setAttribute('attributeName', 'stroke-dashoffset');
@@ -598,45 +604,45 @@
         animate.setAttribute('dur', '1s');
         animate.setAttribute('repeatCount', 'indefinite');
         path.appendChild(animate);
-        
+
         // Tambahkan efek glow/shadow
         path.style.filter = `drop-shadow(0 0 3px ${finalOptions.color})`;
         path.style.transition = 'opacity 0.3s ease';
       }
     });
-    
+
     return polyline;
   }
 
   function tampilkanJarakGaris(p1, p2, satuan = 'm') {
     const distance = map.distance(p1, p2); // dalam meter
     const midPoint = [
-      (p1[0] + p2[0]) / 2,
-      (p1[1] + p2[1]) / 2
+      (p1[0] + p2[0]) / 2
+      , (p1[1] + p2[1]) / 2
     ];
 
-    let label = satuan === 'km' && distance > 1000
-      ? (distance / 1000).toFixed(2) + ' km'
-      : distance.toFixed(0) + ' m';
+    let label = satuan === 'km' && distance > 1000 ?
+      (distance / 1000).toFixed(2) + ' km' :
+      distance.toFixed(0) + ' m';
 
     L.tooltip({
-      permanent: true,
-      direction: 'center',
-      className: 'distance-label'
-    })
-    .setLatLng(midPoint)
-    .setContent(label)
-    .addTo(map);
+        permanent: true
+        , direction: 'center'
+        , className: 'distance-label'
+      })
+      .setLatLng(midPoint)
+      .setContent(label)
+      .addTo(map);
   }
 
 
-let odcMap = {};
-let odpMap = {};
-let odpPending = [];
+  let odcMap = {};
+  let odpMap = {};
+  let odpPending = [];
 
-const userId ="{{ $id }}";
-  @if (!empty($query->user_mikrotik?->namaMikrotikUser))
-    fetch(`/mapping/json/mapping/user/${userId}`)
+  const userId = "{{ $id }}";
+  @if(!empty($query - > user_mikrotik ? - > namaMikrotikUser))
+  fetch(`/mapping/json/mapping/user/${userId}`)
     .then(response => response.json())
     .then(res => {
       const data = res.data || [];
@@ -653,39 +659,41 @@ const userId ="{{ $id }}";
         if (item.type === 'ODP') iconClass = 'odp-icon';
 
         const icon = L.divIcon({
-          className: '',
-          html: `<span class="custom-marker ${iconClass}"></span>`,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8]
+          className: ''
+          , html: `<span class="custom-marker ${iconClass}"></span>`
+          , iconSize: [16, 16]
+          , iconAnchor: [8, 8]
         });
 
         if (item.type === 'ODC') {
           // Simpan marker & posisi ODC
-          const marker = L.marker(position, { icon }).addTo(map);
+          const marker = L.marker(position, {
+            icon
+          }).addTo(map);
           marker.bindPopup(`<b>ODC</b><br>Nama: ${item.nama}<br>Port: ${item.port}<br>Port Sisa: ${item.portSisa}<br>Port OLT: ${item.portOlt}`);
           odcMap[item.id] = position;
 
           // Garis dari server pusat ke ODC dengan animasi modern
           createAnimatedPolyline([centerLatLng, position], {
-            color: '#ff9800',
-            weight: 3,
-            opacity: 0.85
+            color: '#ff9800'
+            , weight: 3
+            , opacity: 0.85
           }).addTo(map);
           tampilkanJarakGaris(centerLatLng, position);
-        }
-
-        else if (item.type === 'ODP') {
+        } else if (item.type === 'ODP') {
           // Simpan marker & posisi ODP
-          const marker = L.marker(position, { icon }).addTo(map);
+          const marker = L.marker(position, {
+            icon
+          }).addTo(map);
           marker.bindPopup(`<b>ODP</b><br>Nama: ${item.nama}<br>Port: ${item.port}<br>Port Sisa: ${item.portSisa}<br>Port ODC: ${item.portOdc}`);
           odpMap[item.id] = position;
 
           // Jika ODC-nya sudah tersedia dengan animasi modern
           if (item.idOdc && odcMap[item.idOdc]) {
             createAnimatedPolyline([odcMap[item.idOdc], position], {
-              color: '#4caf50',
-              weight: 3,
-              opacity: 0.85
+              color: '#4caf50'
+              , weight: 3
+              , opacity: 0.85
             }).addTo(map);
             tampilkanJarakGaris(odcMap[item.idOdc], position);
           }
@@ -694,34 +702,37 @@ const userId ="{{ $id }}";
           if (item.idOdp) {
             if (odpMap[item.idOdp]) {
               createAnimatedPolyline([odpMap[item.idOdp], position], {
-                color: '#9c27b0',
-                weight: 3,
-                opacity: 0.85
+                color: '#9c27b0'
+                , weight: 3
+                , opacity: 0.85
               }).addTo(map);
               tampilkanJarakGaris(odpMap[item.idOdp], position);
             } else {
-              odpPending.push({ from: item.idOdp, to: position });
+              odpPending.push({
+                from: item.idOdp
+                , to: position
+              });
             }
           }
-        }
-
-        else if (item.type === 'USER') {
+        } else if (item.type === 'USER') {
           const userIcon = L.divIcon({
-            className: '',
-            html: `<span class="custom-marker" style="background-color: blue;"></span>`,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8]
+            className: ''
+            , html: `<span class="custom-marker" style="background-color: blue;"></span>`
+            , iconSize: [16, 16]
+            , iconAnchor: [8, 8]
           });
 
-          const marker = L.marker(position, { icon: userIcon }).addTo(map);
+          const marker = L.marker(position, {
+            icon: userIcon
+          }).addTo(map);
           marker.bindPopup(`<b>USER</b><br>ID User: ${item.idUser}`);
 
           // Jika ODP-nya sudah tersedia dengan animasi modern
           if (item.idOdp && odpMap[item.idOdp]) {
             createAnimatedPolyline([odpMap[item.idOdp], position], {
-              color: '#2196f3',
-              weight: 3,
-              opacity: 0.85
+              color: '#2196f3'
+              , weight: 3
+              , opacity: 0.85
             }).addTo(map);
             tampilkanJarakGaris(odpMap[item.idOdp], position);
           }
@@ -732,9 +743,9 @@ const userId ="{{ $id }}";
       odpPending.forEach(p => {
         if (odpMap[p.from]) {
           createAnimatedPolyline([odpMap[p.from], p.to], {
-            color: '#9c27b0',
-            weight: 3,
-            opacity: 0.85
+            color: '#9c27b0'
+            , weight: 3
+            , opacity: 0.85
           }).addTo(map);
         }
       });
@@ -744,11 +755,11 @@ const userId ="{{ $id }}";
     });
 
   @else
-    //load odc odp jika blm di maping lokasi user
-    fetch("{{ route('mapping.json.server') }}")
+  //load odc odp jika blm di maping lokasi user
+  fetch("{{ route('mapping.json.server') }}")
     .then(response => response.json())
     .then(data => {
-    data.forEach(item => {
+      data.forEach(item => {
         const lat = parseFloat(item.latitude);
         const lng = parseFloat(item.longitude);
 
@@ -760,13 +771,15 @@ const userId ="{{ $id }}";
         // Buat icon HTML
         const icon = L.divIcon({
           className: '', // kosongkan agar tidak override
-          html: `<span class="custom-marker ${iconClass}"></span>`,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8]
+          html: `<span class="custom-marker ${iconClass}"></span>`
+          , iconSize: [16, 16]
+          , iconAnchor: [8, 8]
         });
         if (item.type === 'ODC') {
           // Tambahkan marker
-          const marker = L.marker(position, { icon }).addTo(map);
+          const marker = L.marker(position, {
+            icon
+          }).addTo(map);
           marker.bindPopup(`<b>${item.type}</b><br>Nama : ${item.nama}<br>Port : ${item.port}<br>Port Sisa : ${item.portSisa}<br>Port OLT : ${item.portOlt}`);
 
           // Simpan posisi ODC berdasarkan ID
@@ -774,13 +787,15 @@ const userId ="{{ $id }}";
 
           // Garis dari server pusat ke ODC (warna oranye) dengan animasi modern
           createAnimatedPolyline([centerLatLng, position], {
-            color: '#ff9800',
-            weight: 3,
-            opacity: 0.85
+            color: '#ff9800'
+            , weight: 3
+            , opacity: 0.85
           }).addTo(map);
 
         } else if (item.type === 'ODP') {
-          const marker = L.marker(position, { icon }).addTo(map);
+          const marker = L.marker(position, {
+            icon
+          }).addTo(map);
           marker.bindPopup(`<b>${item.type}</b><br>Nama : ${item.nama}<br>Port : ${item.port}<br>Port Sisa : ${item.portSisa}<br>Port ODC : ${item.portOdc}`);
 
           // Simpan posisi ODP
@@ -789,9 +804,9 @@ const userId ="{{ $id }}";
           // Garis dari ODP ke ODC (warna hijau) dengan animasi modern
           if (item.idOdc && odcMap[item.idOdc]) {
             createAnimatedPolyline([odcMap[item.idOdc], position], {
-              color: '#4caf50',
-              weight: 3,
-              opacity: 0.85
+              color: '#4caf50'
+              , weight: 3
+              , opacity: 0.85
             }).addTo(map);
           }
 
@@ -799,12 +814,15 @@ const userId ="{{ $id }}";
           if (item.idOdp) {
             if (odpMap[item.idOdp]) {
               createAnimatedPolyline([odpMap[item.idOdp], position], {
-                color: '#9c27b0',
-                weight: 3,
-                opacity: 0.85
+                color: '#9c27b0'
+                , weight: 3
+                , opacity: 0.85
               }).addTo(map);
             } else {
-              odpPending.push({ from: item.idOdp, to: position });
+              odpPending.push({
+                from: item.idOdp
+                , to: position
+              });
             }
           }
         }
@@ -814,10 +832,10 @@ const userId ="{{ $id }}";
       odpPending.forEach(p => {
         if (odpMap[p.from]) {
           L.polyline([odpMap[p.from], p.to], {
-            color: 'purple',
-            weight: 2,
-            opacity: 0.7,
-            dashArray: '3,5'
+            color: 'purple'
+            , weight: 2
+            , opacity: 0.7
+            , dashArray: '3,5'
           }).addTo(map);
         }
       });
@@ -825,26 +843,27 @@ const userId ="{{ $id }}";
     .catch(error => {
       console.error("Gagal load data mapping:", error);
     });
-    //load odc odp
+  //load odc odp
   @endif
 
-    //pilih area untuk di pindai
-    let marker;
-      map.on('click', function (e) {
-      const lat = e.latlng.lat.toFixed(6);
-      const lng = e.latlng.lng.toFixed(6);
+  //pilih area untuk di pindai
+  let marker;
+  map.on('click', function(e) {
+    const lat = e.latlng.lat.toFixed(6);
+    const lng = e.latlng.lng.toFixed(6);
 
-      document.getElementById('lat').value = lat;
-      document.getElementById('lng').value = lng;
+    document.getElementById('lat').value = lat;
+    document.getElementById('lng').value = lng;
 
-      if (marker) {
-        map.removeLayer(marker);
-      }
+    if (marker) {
+      map.removeLayer(marker);
+    }
 
-      marker = L.marker([lat, lng]).addTo(map)
-        .bindPopup(`Koordinat: ${lat}, ${lng}`)
-        .openPopup();
-    });
+    marker = L.marker([lat, lng]).addTo(map)
+      .bindPopup(`Koordinat: ${lat}, ${lng}`)
+      .openPopup();
+  });
+
 </script>
 @endsection
 
@@ -879,8 +898,7 @@ const userId ="{{ $id }}";
                 <select required name="kategori" id="kategori" class="form-select">
                   <option value="00">Pilih</option>
                   @foreach (Helper::getKategori() as $val)
-                  <option {{ $query->user_mikrotik?->idKategori == $val->id ? 'selected' : '' }}
-                    value="{{ $val->id }}">{{ $val->nama }}</option>
+                  <option {{ $query->user_mikrotik?->idKategori == $val->id ? 'selected' : '' }} value="{{ $val->id }}">{{ $val->nama }}</option>
                   @endforeach
                 </select>
                 <label>Kategori</label>
@@ -893,8 +911,7 @@ const userId ="{{ $id }}";
                 <select required name="paket" id="paket" class="form-select">
                   <option value="00">Pilih</option>
                   @foreach (Helper::getPaket() as $val)
-                  <option {{ $query->user_mikrotik?->idPaket == $val->id ? 'selected' : '' }}
-                    value="{{ $val->id }}">{{ $val->nama }}</option>
+                  <option {{ $query->user_mikrotik?->idPaket == $val->id ? 'selected' : '' }} value="{{ $val->id }}">{{ $val->nama }}</option>
                   @endforeach
                 </select>
                 <label>Paket</label>
@@ -936,8 +953,7 @@ const userId ="{{ $id }}";
           <div class="col-md-2 mb-3">
             <div class="input-group input-group-merge">
               <div class="form-floating form-floating-outline w-100">
-                <input type="number" id="port" name="port" class="form-control"
-                  value="{{ $query->user_mikrotik?->portOdp ?? null }}" autocomplete="off" />
+                <input type="number" id="port" name="port" class="form-control" value="{{ $query->user_mikrotik?->portOdp ?? null }}" autocomplete="off" />
                 <label>Lokasi Port ODP</label>
               </div>
             </div>
@@ -945,8 +961,7 @@ const userId ="{{ $id }}";
           <div class="col-md-3 mb-3">
             <div class="input-group input-group-merge">
               <div class="form-floating form-floating-outline w-100">
-                <input type="text" id="nama" name="nama" class="form-control" value="{{ $query->name ?? null }}"
-                  readonly disabled />
+                <input type="text" id="nama" name="nama" class="form-control" value="{{ $query->name ?? null }}" readonly disabled />
                 <input type="hidden" id="idd" name="idd" class="form-control" value="{{ $id }}" readonly />
                 <label>Nama</label>
               </div>
@@ -955,8 +970,7 @@ const userId ="{{ $id }}";
           <div class="col-md-3 mb-3">
             <div class="input-group input-group-merge">
               <div class="form-floating form-floating-outline w-100">
-                <input type="text" id="wa" name="wa" class="form-control" value="{{ $query->wa ?? null }}" readonly
-                  disabled />
+                <input type="text" id="wa" name="wa" class="form-control" value="{{ $query->wa ?? null }}" readonly disabled />
                 <label>Wa</label>
               </div>
             </div>
@@ -980,8 +994,7 @@ const userId ="{{ $id }}";
             <div class="col-md-1 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input readonly value="{{ $query->user_mikrotik?->idMikrotikUser ?? '' }}" type="text" name="id-api"
-                    id="id-api" class="form-control" />
+                  <input readonly value="{{ $query->user_mikrotik?->idMikrotikUser ?? '' }}" type="text" name="id-api" id="id-api" class="form-control" />
                   <label>Id Api</label>
                 </div>
               </div>
@@ -990,8 +1003,7 @@ const userId ="{{ $id }}";
             <div class="col-md-2 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input readonly value="{{ $query->user_mikrotik?->serviceMikrotikUser ?? '' }}" type="text"
-                    name="service-api" id="service-api" class="form-control" />
+                  <input readonly value="{{ $query->user_mikrotik?->serviceMikrotikUser ?? '' }}" type="text" name="service-api" id="service-api" class="form-control" />
                   <label>Service Api</label>
                 </div>
               </div>
@@ -1000,8 +1012,7 @@ const userId ="{{ $id }}";
             <div class="col-md-2 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input readonly value="{{ $query->user_mikrotik?->profileMikrotikUser ?? '' }}" type="text"
-                    name="profile-api" id="profile-api" class="form-control" />
+                  <input readonly value="{{ $query->user_mikrotik?->profileMikrotikUser ?? '' }}" type="text" name="profile-api" id="profile-api" class="form-control" />
                   <label>Paket Api</label>
                 </div>
               </div>
@@ -1009,8 +1020,7 @@ const userId ="{{ $id }}";
             <div class="col-md-2 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input readonly value="{{ $query->user_mikrotik?->password ?? '' }}" type="text" name="password-api"
-                    id="password-api" class="form-control" />
+                  <input readonly value="{{ $query->user_mikrotik?->password ?? '' }}" type="text" name="password-api" id="password-api" class="form-control" />
                   <label>password Api</label>
                 </div>
               </div>
@@ -1024,8 +1034,7 @@ const userId ="{{ $id }}";
             <div class="col-md-3 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input type="text" name="secretapi" id="secretapi-input" class="form-control"
-                    placeholder="mryes22@codeteam.id" value="{{ $query->user_mikrotik?->namaMikrotikUser ?? '' }}" />
+                  <input type="text" name="secretapi" id="secretapi-input" class="form-control" placeholder="mryes22@codeteam.id" value="{{ $query->user_mikrotik?->namaMikrotikUser ?? '' }}" />
                   <label>Secret</label>
                 </div>
               </div>
@@ -1034,8 +1043,7 @@ const userId ="{{ $id }}";
             <div class="col-md-4 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input type="text" id="password" name="password" class="form-control"
-                    value="{{ $query->user_mikrotik?->password ?? '' }}" />
+                  <input type="text" id="password" name="password" class="form-control" value="{{ $query->user_mikrotik?->password ?? '' }}" />
                   <label>Password Secret</label>
                 </div>
               </div>
@@ -1046,14 +1054,12 @@ const userId ="{{ $id }}";
         <div class="row">
           <div class="col-md-4 mb-3">
             <label for="lat" class="form-label">Latitude</label>
-            <input value=" {{ $query->user_mikrotik?->latitude ?? '' }}" type="text" id="lat" name="latitude"
-              class="form-control" readonly />
+            <input value=" {{ $query->user_mikrotik?->latitude ?? '' }}" type="text" id="lat" name="latitude" class="form-control" readonly />
           </div>
 
           <div class="col-md-4 mb-3">
             <label for="lng" class="form-label">Longitude</label>
-            <input value=" {{ $query->user_mikrotik?->longitude ?? '' }}" type="text" id="lng" name="longitude"
-              class="form-control" readonly />
+            <input value=" {{ $query->user_mikrotik?->longitude ?? '' }}" type="text" id="lng" name="longitude" class="form-control" readonly />
           </div>
         </div>
         <div class="row">
