@@ -45,9 +45,9 @@
                     <i class="mdi mdi-dots-vertical"></i>
                   </button>
                   <div class="dropdown-menu">
-                    <a class="dropdown-item fw-bold btn-edit" href="/user/edit/mapping/${data}">
-                      <i class="mdi mdi-pencil-outline me-1"></i> Mapping
-                    </a>
+                <a class="dropdown-item fw-bold btn-edit" href="/user/edit/mapping/${data}">
+                  <i class="mdi mdi-pencil-outline me-1"></i> Mapping
+                </a>
                     <a class="dropdown-item fw-bold btn-upload-foto" href="javascript:void(0);" data-id="${data}">
                       <i class="mdi mdi-camera-outline me-1"></i> Upload Foto
                     </a>

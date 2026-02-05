@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Mikrotik;
 
 use App\Http\Controllers\Controller;
+use App\Models\Lamtim_mikrotik;
 use App\Services\MikrotikService;
 use Illuminate\Http\Request;
 
@@ -89,5 +90,82 @@ class MikrotikController extends Controller
   public function json(Request $request)
   {
     return $this->mikrotikService->getDatatablesJson($request);
+  }
+
+  // === Cek Koneksi ===
+
+  public function connectionCheck()
+  {
+    return view('content.server.connection-check');
+  }
+
+  public function testConnection(int $id)
+  {
+    $result = $this->mikrotikService->checkConnection($id);
+    return response()->json(['error' => !$result['connected'], 'data' => $result]);
+  }
+
+  public function testAllConnections()
+  {
+    $servers = Lamtim_mikrotik::where('isActive', 1)->get();
+    $results = [];
+
+    foreach ($servers as $server) {
+      $check = $this->mikrotikService->checkConnection($server->id);
+      $results[] = [
+        'id'        => $server->id,
+        'nama'      => $server->nama,
+        'ip'        => $server->ip,
+        'port'      => $server->port,
+        'connected' => $check['connected'],
+        'message'   => $check['message'],
+        'identity'  => $check['identity'] ?? null,
+      ];
+    }
+
+    return response()->json(['error' => false, 'data' => $results]);
+  }
+
+  // === Kelola PPPoE ===
+
+  public function pppoeManage()
+  {
+    return view('content.server.pppoe-manage');
+  }
+
+  public function getPppoeUsers(int $idMikrotik)
+  {
+    $result = $this->mikrotikService->getPppoeUsers($idMikrotik);
+
+    if (!$result['success']) {
+      return response()->json([
+        'error'   => true,
+        'message' => 'Gagal mengambil data PPPoE: ' . ($result['message'] ?? ''),
+      ], 500);
+    }
+
+    return response()->json(['error' => false, 'data' => $result['data']]);
+  }
+
+  public function disablePppoe(Request $request)
+  {
+    $validated = $request->validate([
+      'idMikrotik' => 'required|integer',
+      'username'   => 'required|string',
+    ]);
+
+    $result = $this->mikrotikService->disablePppoeUser($validated['idMikrotik'], $validated['username']);
+    return response()->json(['error' => !$result['success'], 'message' => $result['message']], $result['success'] ? 200 : 422);
+  }
+
+  public function enablePppoe(Request $request)
+  {
+    $validated = $request->validate([
+      'idMikrotik' => 'required|integer',
+      'username'   => 'required|string',
+    ]);
+
+    $result = $this->mikrotikService->enablePppoeUser($validated['idMikrotik'], $validated['username']);
+    return response()->json(['error' => !$result['success'], 'message' => $result['message']], $result['success'] ? 200 : 422);
   }
 }

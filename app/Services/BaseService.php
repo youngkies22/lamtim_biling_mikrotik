@@ -411,20 +411,20 @@ class BaseService
 
       // Jika idOdc tidak null, kembalikan stok
       if (!empty($data->idOdc)) {
-        // Ambil stok yang dipakai pada data utama (misal portOdc)
-        $stockUsed = 1;
-        $stockId = $data->idOdc;
-        $stockColumn = 'portSisa';
+      // Ambil stok yang dipakai pada data utama (misal portOdc)
+      $stockUsed = 1;
+      $stockId = $data->idOdc;
+      $stockColumn = 'portSisa';
 
-        // Ambil data stok saat ini
-        $stockData = $this->secondaryRepo->findById($stockId);
-        if (!$stockData) {
-          throw new ModelNotFoundException("Data stok dengan ID {$stockId} tidak ditemukan.");
-        }
+      // Ambil data stok saat ini
+      $stockData = $this->secondaryRepo->findById($stockId);
+      if (!$stockData) {
+        throw new ModelNotFoundException("Data stok dengan ID {$stockId} tidak ditemukan.");
+      }
 
-        // Tambahkan kembali stok yang dipakai pada data utama
-        $newStock = $stockData->$stockColumn + $stockUsed;
-        $this->secondaryRepo->updateStock($stockId, $stockColumn, $newStock);
+      // Tambahkan kembali stok yang dipakai pada data utama
+      $newStock = $stockData->$stockColumn + $stockUsed;
+      $this->secondaryRepo->updateStock($stockId, $stockColumn, $newStock);
       }
 
       // Hapus data utama

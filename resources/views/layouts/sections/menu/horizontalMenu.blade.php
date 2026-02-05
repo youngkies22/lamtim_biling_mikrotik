@@ -18,11 +18,31 @@
           <div>SERVER</div>
         </a>
         <ul class="menu-sub">
-          <li class="menu-item">
-            <a href="{{ route('mikrotik.index') }}" class="menu-link">
+          <li class="menu-item menu-dropdown">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
               <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
               <div>Mikrotik</div>
             </a>
+            <ul class="menu-sub">
+              <li class="menu-item">
+                <a href="{{ route('mikrotik.index') }}" class="menu-link">
+                  <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
+                  <div>Mikrotik</div>
+                </a>
+              </li>
+              <li class="menu-item">
+                <a href="{{ route('mikrotik.connection-check') }}" class="menu-link">
+                  <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
+                  <div>Cek Koneksi</div>
+                </a>
+              </li>
+              <li class="menu-item">
+                <a href="{{ route('mikrotik.pppoe-manage') }}" class="menu-link">
+                  <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
+                  <div>Kelola PPPoE</div>
+                </a>
+              </li>
+            </ul>
           </li>
           <li class="menu-item">
             <a href="{{ route('olt.index') }}" class="menu-link">

@@ -7,31 +7,41 @@
       "slug": "pages-home"
     },
     {
-      "url": "/page-2",
-      "icon": "menu-icon tf-icons mdi mdi-file-document-outline",
-      "name": "Page 2",
-      "slug": "pages-page-2"
-    },
-    {
-      "url": "/pages/misc-error",
-      "name": "Error",
-      "icon": "menu-icon tf-icons mdi mdi-alert-circle-outline",
-      "slug": "pages-misc-error",
-      "target": "_blank"
-    },
-    {
-      "url": "/auth/login-basic",
-      "name": "Login",
-      "icon": "menu-icon tf-icons mdi mdi-login",
-      "slug": "auth-login-basic",
-      "target": "_blank"
-    },
-    {
-      "url": "/auth/register-basic",
-      "name": "Register",
-      "icon": "menu-icon tf-icons mdi mdi-account-outline",
-      "slug": "auth-register-basic",
-      "target": "_blank"
+      "name": "Server",
+      "icon": "menu-icon tf-icons mdi mdi-server-network",
+      "slug": ["mikrotik", "olt", "odc", "odp"],
+      "submenu": [
+        {
+          "url": "/mikrotik",
+          "name": "Mikrotik",
+          "slug": "mikrotik.index"
+        },
+        {
+          "url": "/olt",
+          "name": "OLT",
+          "slug": "olt.index"
+        },
+        {
+          "url": "/odc",
+          "name": "ODC",
+          "slug": "odc.index"
+        },
+        {
+          "url": "/odp",
+          "name": "ODP",
+          "slug": "odp.index"
+        },
+        {
+          "url": "/mikrotik/connection-check",
+          "name": "Cek Koneksi",
+          "slug": "mikrotik.connection-check"
+        },
+        {
+          "url": "/mikrotik/pppoe-manage",
+          "name": "Kelola PPPoE",
+          "slug": "mikrotik.pppoe-manage"
+        }
+      ]
     }
   ]
 }

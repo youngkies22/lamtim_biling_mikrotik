@@ -500,15 +500,15 @@
       
       // Hanya filter jika tahun sudah dipilih dan bulan dipilih
       if (tahun && bulan) {
-        if (window.GlobalLoading) {
+      if (window.GlobalLoading) {
           GlobalLoading.show('Memfilter data berdasarkan periode...');
-        }
+      }
 
-        table.ajax.reload(() => {
-          if (window.GlobalLoading) {
-            GlobalLoading.hide();
-          }
-        });
+      table.ajax.reload(() => {
+        if (window.GlobalLoading) {
+          GlobalLoading.hide();
+        }
+      });
       } else if (tahun && !bulan) {
         // Jika tahun dipilih tapi bulan kosong, reload tanpa filter bulan
         if (window.GlobalLoading) {
@@ -577,7 +577,7 @@
               @foreach($namaBulan as $key => $nama)
                 <option value="{{ $key }}">{{ $nama }}</option>
               @endforeach
-            </select>
+          </select>
           </div>
         </div>
       </div>
