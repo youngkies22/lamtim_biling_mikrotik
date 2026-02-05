@@ -27,6 +27,7 @@ Route::middleware(['auth'])->group(function () {
   require __DIR__ . '/modules/kategori.php';
   require __DIR__ . '/modules/paket.php';
   require __DIR__ . '/modules/mapping.php'; //mapping
+  require __DIR__ . '/modules/google-map.php'; //google map
   require __DIR__ . '/modules/user.php'; // pelanggan
   require __DIR__ . '/modules/select.php';
   require __DIR__ . '/modules/area.php';

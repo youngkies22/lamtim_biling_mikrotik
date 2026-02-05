@@ -68,6 +68,12 @@
               <div>MAPPING</div>
             </a>
           </li>
+          <li class="menu-item">
+            <a href="{{ route('google-map.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
+              <div>GOOGLE MAP</div>
+            </a>
+          </li>
         </ul>
       </li>
       <li class="menu-item menu-dropdown">
