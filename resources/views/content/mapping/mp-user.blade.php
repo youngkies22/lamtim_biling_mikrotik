@@ -235,6 +235,20 @@
     z-index: 1051 !important;
   }
 
+  /* Pastikan label select2 tetap terlihat */
+  #secretapi-select+label,
+  .select2-container+label {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* Pastikan select2 dropdown selalu tampil ke bawah */
+  .select2-container--open .select2-dropdown {
+    top: 100% !important;
+    bottom: auto !important;
+  }
+
   .custom-marker {
     border-radius: 50%;
     width: 16px;
@@ -411,9 +425,23 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
           $secretSelect.select2({
             placeholder: 'Pilih atau cari Secret'
             , allowClear: true
-            , dropdownParent: $secretSelect.parent()
+            , dropdownParent: $secretSelect.closest('.card-body, .offcanvas-body, body')
             , width: '100%'
+            , minimumResultsForSearch: 0 // Selalu tampilkan search box
           });
+
+          // Pastikan label tetap terlihat setelah Select2 diinisialisasi
+          setTimeout(function() {
+            const $label = $secretSelect.siblings('label');
+            if ($label.length) {
+              $label.css('display', 'block').css('opacity', '1').css('visibility', 'visible');
+            }
+            // Juga pastikan label di parent
+            const $parentLabel = $secretSelect.closest('.col-md-4').find('label.form-label');
+            if ($parentLabel.length) {
+              $parentLabel.css('display', 'block').css('opacity', '1').css('visibility', 'visible');
+            }
+          }, 100);
 
           // Jika ada secret yang sudah dipilih (selected), isi field-field terkait
           const selectedOption = $secretSelect.find('option:selected');
@@ -999,14 +1027,10 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
           <!-- Secret API Section - Dropdown dan Input -->
           <div id="secret-mikrotip-api" class="row {{ $query->user_mikrotik?->id === null ? 'd-none' : '' }}">
             <div class="col-md-4 mb-3">
-              <div class="input-group input-group-merge">
-                <div class="form-floating form-floating-outline w-100">
-                  <select name="secretapi" id="secretapi-select" class="form-select select2">
-                    <option value="">Pilih Secret</option>
-                  </select>
-                  <label>Secret</label>
-                </div>
-              </div>
+              <label for="secretapi-select" class="form-label">Secret</label>
+              <select name="secretapi" id="secretapi-select" class="form-select select2">
+                <option value="">Pilih Secret</option>
+              </select>
             </div>
 
             <div class="col-md-1 mb-3">
