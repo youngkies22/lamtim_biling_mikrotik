@@ -370,23 +370,26 @@
       const $secretSelect = $('#secretapi-select');
       $secretSelect.html('<option>Loading...</option>');
 
-      $.get(`/select/secret-api/${idMikrotik}`, function (res) {
+      $.get('/select/secret-api/' + idMikrotik, function (res) {
 
         if (res.status) {
-          let dariDb = "{{ $query->user_mikrotik->namaMikrotikUser ?? '' }}";
+          @php
+            $dariDb = $query->user_mikrotik->namaMikrotikUser ?? '';
+          @endphp
+          let dariDb = @json($dariDb);
 
           let options = '<option value="">Pilih Secret</option>';
           res.data.forEach(function (item) {
            let selected = item.name === dariDb ? 'selected' : '';
-            options += `<option value="${item.name}" ${selected}
-                     data-id="${item['.id']}"
-                     data-service="${item.service || ''}"
-                     data-profile="${item.profile || ''}"
-                     data-password="${item.password || ''}"
-                     data-local="${item['local-address'] || ''}"
-                     data-remote="${item['remote-address'] || ''}">
-                    ${item.name}
-                  </option>`;
+            options += '<option value="' + item.name + '" ' + selected +
+                     ' data-id="' + (item['.id'] || '') + '"' +
+                     ' data-service="' + (item.service || '') + '"' +
+                     ' data-profile="' + (item.profile || '') + '"' +
+                     ' data-password="' + (item.password || '') + '"' +
+                     ' data-local="' + (item['local-address'] || '') + '"' +
+                     ' data-remote="' + (item['remote-address'] || '') + '">' +
+                     item.name +
+                     '</option>';
           });
           $secretSelect.html(options);
           
@@ -465,7 +468,11 @@
     // Inisialisasi: Load secret saat halaman pertama kali dimuat jika sudah ada mikrotik dan aksi = 2
     const idMikrotik = $('#idmikrotik').val();
     const aksi = $('select[name="aksi"]').val();
-    const hasUserMikrotik = {{ $query->user_mikrotik?->id !== null ? 'true' : 'false' }};
+    @if($query->user_mikrotik?->id !== null)
+    const hasUserMikrotik = true;
+    @else
+    const hasUserMikrotik = false;
+    @endif
     
     // Jika sudah ada mikrotik dipilih, aksi = 2 (API), dan sudah ada user_mikrotik
     if (idMikrotik && idMikrotik !== '00' && aksi === '2') {
