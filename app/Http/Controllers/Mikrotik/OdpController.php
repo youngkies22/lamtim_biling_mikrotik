@@ -148,10 +148,10 @@ class OdpController extends Controller
       'parentOdp:id,nama'
     ];
     
-    // Ambil query dengan columns dan with menggunakan model langsung
-    $query = Lamtim_odp::select($columns)->with($with)->get();
+    // Gunakan query builder (bukan get()) untuk server-side processing
+    $query = Lamtim_odp::select($columns)->with($with);
     
-    // Buat DataTable instance
+    // Buat DataTable instance dengan query builder
     $datatable = \Yajra\DataTables\Facades\DataTables::of($query);
     
     // Tambahkan callback untuk kolom yang ada

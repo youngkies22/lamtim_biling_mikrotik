@@ -364,7 +364,7 @@
 
           <th>OLT</th>
           <th>PORT SFP OLT</th>
-          <th>ODC / ODP PARENT</th>
+          <th>ODC</th>
           <th>PORT ODC</th>
           <th>ODP PARENT</th>
           <th>CREAD</th>

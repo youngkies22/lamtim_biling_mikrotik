@@ -380,15 +380,24 @@
            let selected = item.name === dariDb ? 'selected' : '';
             options += `<option value="${item.name}" ${selected}
                      data-id="${item['.id']}"
-                     data-service="${item.service}"
-                     data-profile="${item.profile}"
-                     data-password="${item.password}"
-                     data-local="${item['local-address']}"
-                     data-remote="${item['remote-address']}">
+                     data-service="${item.service || ''}"
+                     data-profile="${item.profile || ''}"
+                     data-password="${item.password || ''}"
+                     data-local="${item['local-address'] || ''}"
+                     data-remote="${item['remote-address'] || ''}">
                     ${item.name}
                   </option>`;
           });
           $secretSelect.html(options);
+          
+          // Jika ada secret yang sudah dipilih (selected), isi field-field terkait
+          const selectedOption = $secretSelect.find('option:selected');
+          if (selectedOption.length && selectedOption.val()) {
+            $('#id-api').val(selectedOption.data('id') || '');
+            $('#service-api').val(selectedOption.data('service') || '');
+            $('#profile-api').val(selectedOption.data('profile') || '');
+            $('#password-api').val(selectedOption.data('password') || '');
+          }
         } else {
           $secretSelect.html('<option value="">Tidak ditemukan</option>');
           console.error(res.message);
@@ -404,7 +413,12 @@
       $('#service-api').val(selected.data('service') || '');
       $('#profile-api').val(selected.data('profile') || '');
       $('#password-api').val(selected.data('password') || '');
-
+      
+      // Trigger change untuk memastikan nilai ter-update
+      $('#id-api').trigger('change');
+      $('#service-api').trigger('change');
+      $('#profile-api').trigger('change');
+      $('#password-api').trigger('change');
     });
 
     // Saat aksi berubah
@@ -447,6 +461,19 @@
         loadSecretApi(idMikrotik);
       }
     });
+
+    // Inisialisasi: Load secret saat halaman pertama kali dimuat jika sudah ada mikrotik dan aksi = 2
+    const idMikrotik = $('#idmikrotik').val();
+    const aksi = $('select[name="aksi"]').val();
+    const hasUserMikrotik = {{ $query->user_mikrotik?->id !== null ? 'true' : 'false' }};
+    
+    // Jika sudah ada mikrotik dipilih, aksi = 2 (API), dan sudah ada user_mikrotik
+    if (idMikrotik && idMikrotik !== '00' && aksi === '2') {
+      // Delay sedikit untuk memastikan DOM sudah ready
+      setTimeout(function() {
+        loadSecretApi(idMikrotik);
+      }, 300);
+    }
 
     $('#submitMapping').click(function () {
       const aksi = $('select[name="aksi"]').val();
