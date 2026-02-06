@@ -14,6 +14,14 @@ Route::prefix('mikrotik')->as('mikrotik.')->controller(MikrotikController::class
   Route::post('/pppoe-manage/disable', 'disablePppoe')->name('pppoe-manage.disable');
   Route::post('/pppoe-manage/enable', 'enablePppoe')->name('pppoe-manage.enable');
 
+  // === Kelola Isolir ===
+  Route::get('/kelola-isolir', 'kelolaIsolir')->name('kelola-isolir');
+  Route::get('/kelola-isolir/data', 'getIsolirData')->name('kelola-isolir.data');
+  Route::post('/kelola-isolir/isolir', 'isolirUser')->name('kelola-isolir.isolir');
+  Route::post('/kelola-isolir/aktifkan', 'aktifkanUser')->name('kelola-isolir.aktifkan');
+  Route::post('/kelola-isolir/bulk-isolir', 'bulkIsolir')->name('kelola-isolir.bulk-isolir');
+  Route::post('/kelola-isolir/bulk-aktifkan', 'bulkAktifkan')->name('kelola-isolir.bulk-aktifkan');
+
   // === CRUD (static routes sebelum wildcard {id}) ===
   Route::get('/', 'index')->name('index');
   Route::get('/create', 'create')->name('create');

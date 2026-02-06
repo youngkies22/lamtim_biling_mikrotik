@@ -239,4 +239,154 @@ class MikrotikService
       Log::warning("Gagal remove active session '{$pppoeUsername}': " . $e->getMessage());
     }
   }
+
+  /**
+   * Ambil profile PPPoE user saat ini dari MikroTik.
+   */
+  public function getPppoeUserProfile(int $idMikrotik, string $pppoeUsername): array
+  {
+    try {
+      $client = MikrotikMulti::connectionMikrotik($idMikrotik);
+
+      $findQuery = new Query('/ppp/secret/print');
+      $findQuery->where('name', $pppoeUsername);
+      $secrets = $client->query($findQuery)->read();
+
+      if (empty($secrets)) {
+        return ['success' => false, 'message' => "PPPoE user '{$pppoeUsername}' tidak ditemukan."];
+      }
+
+      return [
+        'success' => true,
+        'profile' => $secrets[0]['profile'] ?? 'default',
+        'data' => $secrets[0]
+      ];
+    } catch (\Exception $e) {
+      Log::error("Gagal ambil profile PPPoE '{$pppoeUsername}': " . $e->getMessage());
+      return ['success' => false, 'message' => 'Gagal ambil profile: ' . $e->getMessage()];
+    }
+  }
+
+  /**
+   * Ganti profile PPPoE user di MikroTik.
+   */
+  public function setPppoeProfile(int $idMikrotik, string $pppoeUsername, string $profileName): array
+  {
+    try {
+      $client = MikrotikMulti::connectionMikrotik($idMikrotik);
+
+      // Cari .id secret
+      $findQuery = new Query('/ppp/secret/print');
+      $findQuery->where('name', $pppoeUsername);
+      $secrets = $client->query($findQuery)->read();
+
+      if (empty($secrets)) {
+        return ['success' => false, 'message' => "PPPoE user '{$pppoeUsername}' tidak ditemukan."];
+      }
+
+      $secretId = $secrets[0]['.id'];
+      $oldProfile = $secrets[0]['profile'] ?? 'default';
+
+      // Set profile baru
+      $setQuery = new Query('/ppp/secret/set');
+      $setQuery->equal('.id', $secretId);
+      $setQuery->equal('profile', $profileName);
+      $client->query($setQuery)->read();
+
+      Log::info("PPPoE user '{$pppoeUsername}' profile diubah dari '{$oldProfile}' ke '{$profileName}' pada Mikrotik ID {$idMikrotik}.");
+      return [
+        'success' => true,
+        'message' => "Profile berhasil diubah ke '{$profileName}'.",
+        'old_profile' => $oldProfile
+      ];
+    } catch (\Exception $e) {
+      Log::error("Gagal ubah profile PPPoE '{$pppoeUsername}': " . $e->getMessage());
+      return ['success' => false, 'message' => 'Gagal ubah profile: ' . $e->getMessage()];
+    }
+  }
+
+  /**
+   * Isolir user - ganti profile ke profile isolir dan disconnect.
+   */
+  public function isolirPppoeUser(int $idMikrotik, string $pppoeUsername, string $isolirProfile = 'ISOLIR'): array
+  {
+    try {
+      $client = MikrotikMulti::connectionMikrotik($idMikrotik);
+
+      // Cari .id secret dan profile saat ini
+      $findQuery = new Query('/ppp/secret/print');
+      $findQuery->where('name', $pppoeUsername);
+      $secrets = $client->query($findQuery)->read();
+
+      if (empty($secrets)) {
+        return ['success' => false, 'message' => "PPPoE user '{$pppoeUsername}' tidak ditemukan."];
+      }
+
+      $secretId = $secrets[0]['.id'];
+      $originalProfile = $secrets[0]['profile'] ?? 'default';
+
+      // Jangan isolir jika sudah di profile isolir
+      if (strtoupper($originalProfile) === strtoupper($isolirProfile)) {
+        return ['success' => false, 'message' => "User sudah dalam status isolir."];
+      }
+
+      // Set profile ke isolir
+      $setQuery = new Query('/ppp/secret/set');
+      $setQuery->equal('.id', $secretId);
+      $setQuery->equal('profile', $isolirProfile);
+      $client->query($setQuery)->read();
+
+      // Disconnect sesi aktif agar profile baru berlaku
+      $this->removeActivePppSession($client, $pppoeUsername);
+
+      Log::info("PPPoE user '{$pppoeUsername}' berhasil diisolir (profile: {$originalProfile} -> {$isolirProfile}) pada Mikrotik ID {$idMikrotik}.");
+      return [
+        'success' => true,
+        'message' => "User '{$pppoeUsername}' berhasil diisolir.",
+        'original_profile' => $originalProfile
+      ];
+    } catch (\Exception $e) {
+      Log::error("Gagal isolir PPPoE '{$pppoeUsername}': " . $e->getMessage());
+      return ['success' => false, 'message' => 'Gagal isolir: ' . $e->getMessage()];
+    }
+  }
+
+  /**
+   * Aktifkan user - kembalikan profile ke profile asli dan disconnect untuk refresh.
+   */
+  public function aktifkanPppoeUser(int $idMikrotik, string $pppoeUsername, string $originalProfile): array
+  {
+    try {
+      $client = MikrotikMulti::connectionMikrotik($idMikrotik);
+
+      // Cari .id secret
+      $findQuery = new Query('/ppp/secret/print');
+      $findQuery->where('name', $pppoeUsername);
+      $secrets = $client->query($findQuery)->read();
+
+      if (empty($secrets)) {
+        return ['success' => false, 'message' => "PPPoE user '{$pppoeUsername}' tidak ditemukan."];
+      }
+
+      $secretId = $secrets[0]['.id'];
+
+      // Set profile kembali ke profile asli
+      $setQuery = new Query('/ppp/secret/set');
+      $setQuery->equal('.id', $secretId);
+      $setQuery->equal('profile', $originalProfile);
+      $client->query($setQuery)->read();
+
+      // Disconnect sesi aktif agar profile baru berlaku
+      $this->removeActivePppSession($client, $pppoeUsername);
+
+      Log::info("PPPoE user '{$pppoeUsername}' berhasil diaktifkan (profile dikembalikan ke: {$originalProfile}) pada Mikrotik ID {$idMikrotik}.");
+      return [
+        'success' => true,
+        'message' => "User '{$pppoeUsername}' berhasil diaktifkan dengan profile '{$originalProfile}'."
+      ];
+    } catch (\Exception $e) {
+      Log::error("Gagal aktifkan PPPoE '{$pppoeUsername}': " . $e->getMessage());
+      return ['success' => false, 'message' => 'Gagal aktifkan: ' . $e->getMessage()];
+    }
+  }
 }

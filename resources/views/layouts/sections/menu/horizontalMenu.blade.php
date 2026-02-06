@@ -42,6 +42,12 @@
                   <div>Kelola PPPoE</div>
                 </a>
               </li>
+              <li class="menu-item">
+                <a href="{{ route('mikrotik.kelola-isolir') }}" class="menu-link">
+                  <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
+                  <div>Kelola Isolir</div>
+                </a>
+              </li>
             </ul>
           </li>
           <li class="menu-item">
@@ -69,7 +75,7 @@
             </a>
           </li>
           <li class="menu-item">
-            <a href="{{ route('google-map.index') }}" class="menu-link">
+            <a href="{{ route('google-map.standalone') }}" class="menu-link" target="_blank">
               <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
               <div>GOOGLE MAP</div>
             </a>
