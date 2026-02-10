@@ -206,6 +206,7 @@ class MikrotikController extends Controller
       'secrets.*.password'     => 'nullable|string',
       'secrets.*.service'      => 'nullable|string',
       'secrets.*.profile'      => 'nullable|string',
+      'secrets.*.remote_address' => 'nullable|string',
       'secrets.*.status'       => 'required|in:new,existing',
       'secrets.*.db_id'        => 'nullable|integer',
     ]);

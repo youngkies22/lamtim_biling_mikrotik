@@ -53,44 +53,127 @@
 
   #map { width: 100%; height: 100%; }
 
-  /* ========== TOGGLE PANEL ========== */
-  .toggle-panel {
+  /* ========== FILTER PANEL ========== */
+  .filter-panel {
     position: fixed;
     top: 12px;
     right: 12px;
     z-index: 1000;
     display: flex;
     gap: 6px;
-    flex-wrap: wrap;
-    max-width: 420px;
-    justify-content: flex-end;
+    align-items: flex-start;
   }
-
-  .toggle-pill {
-    padding: 6px 14px;
+  .filter-btn {
+    padding: 8px 16px;
     border: none;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.25s;
+    background: #fff;
+    color: #697a8d;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     display: flex;
     align-items: center;
     gap: 5px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    user-select: none;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover { background: #f5f5f9; }
+  .filter-btn .filter-count {
+    background: #696cff;
+    color: #fff;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
+  .filter-dropdown {
+    position: fixed;
+    top: 48px;
+    right: 12px;
+    z-index: 1001;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    padding: 8px 0;
+    min-width: 210px;
+    display: none;
+    animation: filterSlide 0.15s ease-out;
+  }
+  .filter-dropdown.show { display: block; }
+  @keyframes filterSlide { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+
+  .filter-dropdown .filter-section {
+    padding: 4px 14px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #a1acb8;
+    letter-spacing: 0.5px;
+  }
+  .filter-dropdown .filter-item {
+    padding: 7px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 13px;
     user-select: none;
   }
+  .filter-dropdown .filter-item:hover { background: #f5f5f9; }
+  .filter-item .fi-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    border: 2px solid #ccc;
+    transition: all 0.2s;
+  }
+  .filter-item.active .fi-dot { border-color: transparent; }
+  .filter-item .fi-icon { font-size: 16px; width: 20px; text-align: center; }
+  .filter-item .fi-label { flex: 1; }
+  .filter-item .fi-check {
+    font-size: 14px;
+    color: #4caf50;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .filter-item.active .fi-check { opacity: 1; }
 
-  .toggle-pill.active { color: #fff; }
-  .toggle-pill:not(.active) { background: #fff; color: #697a8d; opacity: 0.7; }
+  .filter-item[data-layer="olt"].active .fi-dot { background: #e91e63; }
+  .filter-item[data-layer="odc"].active .fi-dot { background: #ff9800; }
+  .filter-item[data-layer="odp"].active .fi-dot { background: #4caf50; }
+  .filter-item[data-layer="client"].active .fi-dot { background: #2196f3; }
+  .filter-item[data-layer="routes"].active .fi-dot { background: #9c27b0; }
+  .filter-item[data-layer="label-olt"].active .fi-dot { background: #e91e63; }
+  .filter-item[data-layer="label-odc"].active .fi-dot { background: #ff9800; }
+  .filter-item[data-layer="label-odp"].active .fi-dot { background: #4caf50; }
+  .filter-item[data-layer="label-client"].active .fi-dot { background: #2196f3; }
+  .filter-item[data-layer="area"].active .fi-dot { background: #9c27b0; }
+  .filter-item[data-layer="distance"].active .fi-dot { background: #795548; }
 
-  .toggle-pill[data-layer="olt"].active { background: #e91e63; }
-  .toggle-pill[data-layer="odc"].active { background: #ff9800; }
-  .toggle-pill[data-layer="odp"].active { background: #4caf50; }
-  .toggle-pill[data-layer="client"].active { background: #2196f3; }
-  .toggle-pill[data-layer="routes"].active { background: #9c27b0; }
-  .toggle-pill[data-layer="labels"].active { background: #607d8b; }
-  .toggle-pill[data-layer="distance"].active { background: #795548; }
+  .filter-dropdown .filter-actions {
+    border-top: 1px solid #eee;
+    padding: 6px 14px 2px;
+    display: flex;
+    gap: 6px;
+  }
+  .filter-dropdown .filter-actions button {
+    flex: 1;
+    padding: 5px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .filter-actions .fa-all { background: #696cff; color: #fff; }
+  .filter-actions .fa-all:hover { background: #5f61e6; }
+  .filter-actions .fa-none { background: #f5f5f9; color: #697a8d; }
+  .filter-actions .fa-none:hover { background: #eee; }
 
   /* ========== TOP LEFT CONTROLS ========== */
   .top-controls {
@@ -649,7 +732,6 @@
   }
 
   /* ========== AREA POLYGON ========== */
-  .toggle-pill[data-layer="area"].active { background: #9c27b0; }
   .fab-item[data-type="area"] { color: #9c27b0; }
   .fab-item[data-type="area"]:hover { background: #9c27b0; color: #fff; }
   .area-label {
@@ -727,17 +809,90 @@
 </script>
 
 <div id="map-container">
-  <!-- Toggle Panel -->
-  <div class="toggle-panel">
-    <button class="toggle-pill active" data-layer="olt"><i class="mdi mdi-access-point-network"></i> OLT</button>
-    <button class="toggle-pill active" data-layer="odc"><i class="mdi mdi-router-network"></i> ODC</button>
-    <button class="toggle-pill active" data-layer="odp"><i class="mdi mdi-cube-outline"></i> ODP</button>
-    <button class="toggle-pill active" data-layer="client"><i class="mdi mdi-account-outline"></i> Client</button>
-    <button class="toggle-pill active" data-layer="routes"><i class="mdi mdi-vector-polyline"></i> Garis</button>
-    <button class="toggle-pill active" data-layer="labels"><i class="mdi mdi-label-outline"></i> Label</button>
-    <button class="toggle-pill active" data-layer="area"><i class="mdi mdi-vector-polygon"></i> Area</button>
-    <button class="toggle-pill" data-layer="distance"><i class="mdi mdi-ruler"></i> Jarak</button>
+  <!-- Filter Panel -->
+  <div class="filter-panel">
+    <button class="filter-btn" id="filterToggleBtn">
+      <i class="mdi mdi-filter-outline"></i> Filter <span class="filter-count" id="filterCount">10</span>
+    </button>
     <button class="line-mode-btn" id="btnLineMode"><i class="mdi mdi-chart-timeline-variant"></i> <span id="lineModeLabel">Normal</span></button>
+  </div>
+
+  <div class="filter-dropdown" id="filterDropdown">
+    <div class="filter-section">Perangkat</div>
+    <div class="filter-item active" data-layer="olt">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-access-point-network fi-icon"></i>
+      <span class="fi-label">OLT</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+    <div class="filter-item active" data-layer="odc">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-router-network fi-icon"></i>
+      <span class="fi-label">ODC</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+    <div class="filter-item active" data-layer="odp">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-cube-outline fi-icon"></i>
+      <span class="fi-label">ODP</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+    <div class="filter-item active" data-layer="client">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-account-outline fi-icon"></i>
+      <span class="fi-label">Pelanggan</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+
+    <div class="filter-section">Tampilan</div>
+    <div class="filter-item active" data-layer="routes">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-vector-polyline fi-icon"></i>
+      <span class="fi-label">Garis Rute</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+    <div class="filter-section">Label</div>
+    <div class="filter-item active" data-layer="label-olt">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-label-outline fi-icon"></i>
+      <span class="fi-label">Label OLT</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+    <div class="filter-item active" data-layer="label-odc">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-label-outline fi-icon"></i>
+      <span class="fi-label">Label ODC</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+    <div class="filter-item active" data-layer="label-odp">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-label-outline fi-icon"></i>
+      <span class="fi-label">Label ODP</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+    <div class="filter-item active" data-layer="label-client">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-label-outline fi-icon"></i>
+      <span class="fi-label">Label Pelanggan</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+    <div class="filter-item active" data-layer="area">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-vector-polygon fi-icon"></i>
+      <span class="fi-label">Area Polygon</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+    <div class="filter-item" data-layer="distance">
+      <span class="fi-dot"></span>
+      <i class="mdi mdi-ruler fi-icon"></i>
+      <span class="fi-label">Jarak</span>
+      <i class="mdi mdi-check fi-check"></i>
+    </div>
+
+    <div class="filter-actions">
+      <button class="fa-all" id="filterSelectAll">Semua</button>
+      <button class="fa-none" id="filterSelectNone">Kosongkan</button>
+    </div>
   </div>
 
   <!-- Branding -->
@@ -811,7 +966,7 @@ let layerGroups = {
 let routeLines = [];
 let routeGlowLines = []; // secondary glow layers for mode 3
 let distanceLabels = [];
-let labelsVisible = true;
+let labelVisibility = { olt: true, odc: true, odp: true, client: true };
 let distanceVisible = false;
 let allMarkers = []; // flat list of all markers for label toggle
 let lineMode = localStorage.getItem('lineMode') || 'normal'; // 'normal', 'dash', 'glow'
@@ -1334,11 +1489,11 @@ function disableRouteEdit(reload) {
   if (reload) loadMapData();
 }
 
-// =============== TOGGLE VISIBILITY ===============
+// =============== TOGGLE VISIBILITY (Filter Dropdown) ===============
 function saveToggleStates() {
   const states = {};
-  document.querySelectorAll('.toggle-pill').forEach(pill => {
-    states[pill.dataset.layer] = pill.classList.contains('active');
+  document.querySelectorAll('.filter-item').forEach(item => {
+    states[item.dataset.layer] = item.classList.contains('active');
   });
   localStorage.setItem('mapToggleStates', JSON.stringify(states));
 }
@@ -1348,29 +1503,33 @@ function restoreToggleStates() {
   if (!saved) return;
   try {
     const states = JSON.parse(saved);
-    document.querySelectorAll('.toggle-pill').forEach(pill => {
-      const layer = pill.dataset.layer;
+    document.querySelectorAll('.filter-item').forEach(item => {
+      const layer = item.dataset.layer;
       if (states[layer] !== undefined) {
-        if (states[layer]) pill.classList.add('active');
-        else pill.classList.remove('active');
+        if (states[layer]) item.classList.add('active');
+        else item.classList.remove('active');
       }
     });
   } catch(e) {}
 }
 
 function applyToggleStates() {
-  document.querySelectorAll('.toggle-pill').forEach(pill => {
-    const layer = pill.dataset.layer;
-    const active = pill.classList.contains('active');
+  document.querySelectorAll('.filter-item').forEach(item => {
+    const layer = item.dataset.layer;
+    const active = item.classList.contains('active');
     applyToggle(layer, active);
   });
+  updateFilterCount();
 }
 
 function applyToggle(layer, active) {
-  if (layer === 'labels') {
-    labelsVisible = active;
+  // Per-type label toggles: label-olt, label-odc, label-odp, label-client
+  const labelMatch = layer.match(/^label-(olt|odc|odp|client)$/);
+  if (labelMatch) {
+    const dtype = labelMatch[1];
+    labelVisibility[dtype] = active;
     allMarkers.forEach(m => {
-      if (m.getTooltip()) {
+      if (m._dtype === dtype && m.getTooltip()) {
         if (active) m.openTooltip();
         else m.closeTooltip();
       }
@@ -1396,18 +1555,69 @@ function applyToggle(layer, active) {
   }
 }
 
+function updateFilterCount() {
+  const total = document.querySelectorAll('.filter-item').length;
+  const activeCount = document.querySelectorAll('.filter-item.active').length;
+  const badge = document.getElementById('filterCount');
+  if (badge) {
+    badge.textContent = activeCount;
+    badge.style.display = activeCount === total ? 'none' : 'inline-flex';
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   restoreToggleStates();
 
-  document.querySelectorAll('.toggle-pill').forEach(pill => {
-    pill.addEventListener('click', function() {
-      const layer = this.dataset.layer;
+  // Filter item click handlers
+  document.querySelectorAll('.filter-item').forEach(item => {
+    item.addEventListener('click', function() {
       this.classList.toggle('active');
+      const layer = this.dataset.layer;
       const active = this.classList.contains('active');
       applyToggle(layer, active);
       saveToggleStates();
+      updateFilterCount();
     });
   });
+
+  // Toggle dropdown open/close
+  const filterBtn = document.getElementById('filterToggleBtn');
+  const filterDropdown = document.getElementById('filterDropdown');
+  if (filterBtn && filterDropdown) {
+    filterBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      filterDropdown.classList.toggle('show');
+    });
+
+    // Close dropdown on click outside
+    document.addEventListener('click', function(e) {
+      if (!filterDropdown.contains(e.target) && !filterBtn.contains(e.target)) {
+        filterDropdown.classList.remove('show');
+      }
+    });
+  }
+
+  // Select All button
+  const btnAll = document.getElementById('filterSelectAll');
+  if (btnAll) {
+    btnAll.addEventListener('click', function() {
+      document.querySelectorAll('.filter-item').forEach(item => item.classList.add('active'));
+      applyToggleStates();
+      saveToggleStates();
+    });
+  }
+
+  // Select None button
+  const btnNone = document.getElementById('filterSelectNone');
+  if (btnNone) {
+    btnNone.addEventListener('click', function() {
+      document.querySelectorAll('.filter-item').forEach(item => item.classList.remove('active'));
+      applyToggleStates();
+      saveToggleStates();
+    });
+  }
+
+  updateFilterCount();
 });
 
 // =============== MAP TYPE TOGGLE ===============
@@ -2053,11 +2263,31 @@ function startAreaDrawMode() {
 
 function showAreaModal(editData, coordinates) {
   const isEdit = !!editData;
+
+  // Ambil area tanpa koordinat untuk dropdown "pilih area existing"
+  const allAreas = selectOptions.areas || [];
+  // Area existing = yang ada di DB tapi belum punya polygon (id ada di selectOptions tapi tidak ada di layerGroups.area)
+  const drawnIds = [];
+  layerGroups.area.eachLayer(l => { if (l._areaData) drawnIds.push(l._areaData.id); });
+  const undrawnAreas = allAreas.filter(a => !drawnIds.includes(a.id));
+  const existingOpts = undrawnAreas.map(a => `<option value="${a.id}" data-name="${a.name}" data-code="${a.code_area || ''}">${a.name} (${a.code_area || '-'})</option>`).join('');
+  const showExisting = !isEdit && undrawnAreas.length > 0;
+
   Swal.fire({
     title: `<i class="mdi mdi-vector-polygon me-2" style="color:#9c27b0"></i>${isEdit ? 'Edit' : 'Tambah'} Area`,
     html: `
       <div class="text-start">
         <div class="row g-3">
+          ${showExisting ? `
+          <div class="col-12">
+            <label class="form-label">Pilih Area Existing <small class="text-muted">(opsional)</small></label>
+            <select id="s-area-existing" class="form-select">
+              <option value="">-- Buat Area Baru --</option>
+              ${existingOpts}
+            </select>
+          </div>
+          <div class="col-12"><hr class="my-0"></div>
+          ` : ''}
           <div class="col-md-6"><label class="form-label">Nama Area <span class="text-danger">*</span></label><input type="text" id="s-area-name" class="form-control" value="${isEdit ? editData.name : ''}"></div>
           <div class="col-md-6"><label class="form-label">Kode Area <span class="text-danger">*</span></label><input type="text" id="s-area-code" class="form-control" value="${isEdit ? (editData.code_area||'') : ''}" placeholder="AR-01"></div>
           <div class="col-12"><label class="form-label">Alamat</label><input type="text" id="s-area-address" class="form-control" value="${isEdit ? (editData.address||'') : ''}"></div>
@@ -2072,11 +2302,32 @@ function showAreaModal(editData, coordinates) {
     cancelButtonText: '<i class="mdi mdi-close me-1"></i>Batal',
     customClass: { confirmButton: 'btn btn-primary me-2', cancelButton: 'btn btn-label-secondary' },
     buttonsStyling: false,
+    didOpen: () => {
+      const selExisting = document.getElementById('s-area-existing');
+      if (selExisting) {
+        selExisting.addEventListener('change', function() {
+          const opt = this.selectedOptions[0];
+          if (this.value) {
+            document.getElementById('s-area-name').value = opt.dataset.name || '';
+            document.getElementById('s-area-code').value = opt.dataset.code || '';
+            document.getElementById('s-area-name').readOnly = true;
+            document.getElementById('s-area-code').readOnly = true;
+          } else {
+            document.getElementById('s-area-name').value = '';
+            document.getElementById('s-area-code').value = '';
+            document.getElementById('s-area-name').readOnly = false;
+            document.getElementById('s-area-code').readOnly = false;
+          }
+        });
+      }
+    },
     preConfirm: () => {
       const name = document.getElementById('s-area-name').value.trim();
       const code = document.getElementById('s-area-code').value.trim();
       if (!name || !code) { Swal.showValidationMessage('Nama dan Kode wajib diisi'); return false; }
+      const selExisting = document.getElementById('s-area-existing');
       return {
+        existingId: selExisting ? selExisting.value : null,
         name,
         code_area: code,
         address: document.getElementById('s-area-address').value.trim() || null,
@@ -2086,10 +2337,18 @@ function showAreaModal(editData, coordinates) {
     }
   }).then(result => {
     if (!result.isConfirmed) return;
-    const url = isEdit ? `${BASE}/area/${editData.id}` : `${BASE}/area`;
-    const method = isEdit ? 'PUT' : 'POST';
-    apiFetch(url, method, result.value)
-      .then(() => { showToast(`Area berhasil ${isEdit ? 'diupdate' : 'ditambahkan'}`, 'success'); loadMapData(); })
+    const data = result.value;
+    const existingId = data.existingId;
+    delete data.existingId;
+
+    // Jika pilih area existing → PUT update, jika baru → POST create
+    const useUpdate = isEdit || existingId;
+    const areaId = isEdit ? editData.id : existingId;
+    const url = useUpdate ? `${BASE}/area/${areaId}` : `${BASE}/area`;
+    const method = useUpdate ? 'PUT' : 'POST';
+
+    apiFetch(url, method, data)
+      .then(() => { showToast(`Area berhasil ${useUpdate ? 'diupdate' : 'ditambahkan'}`, 'success'); loadMapData(); loadSelectOptions(); })
       .catch(e => showToast('Gagal: ' + e.message, 'error'));
   });
 }

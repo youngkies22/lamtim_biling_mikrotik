@@ -402,6 +402,17 @@ class MikrotikService
     try {
       $secrets = MikrotikMulti::commandApi($idMikrotik, '/ppp/secret/print', ['service' => 'pppoe']);
 
+      // Ambil active sessions untuk IP dinamis (secret tanpa remote-address)
+      $activeMap = [];
+      try {
+        $actives = MikrotikMulti::commandApi($idMikrotik, '/ppp/active/print');
+        foreach ($actives as $a) {
+          $activeMap[$a['name'] ?? ''] = $a['address'] ?? '';
+        }
+      } catch (\Exception $e) {
+        Log::warning("Gagal ambil active sessions Mikrotik ID {$idMikrotik}: " . $e->getMessage());
+      }
+
       // Ambil semua user mikrotik detail yang terhubung ke server ini (match by nama secret saja)
       $existingUsers = Lamtim_user_mikrotik_details::where('idMikrotik', $idMikrotik)
         ->get()
@@ -412,6 +423,15 @@ class MikrotikService
         $name = $secret['name'] ?? '';
         $apiId = $secret['.id'] ?? '';
 
+        // Prioritas IP: remote-address (static) -> active session (dynamic) -> local-address
+        $ip = $secret['remote-address'] ?? '';
+        if (empty($ip) && isset($activeMap[$name])) {
+          $ip = $activeMap[$name];
+        }
+        if (empty($ip)) {
+          $ip = $secret['local-address'] ?? '';
+        }
+
         // Match by namaMikrotikUser saja (id API bisa tabrakan antar server)
         $existing = $existingUsers->get($name);
 
@@ -421,7 +441,7 @@ class MikrotikService
           'password'       => $secret['password'] ?? '',
           'service'        => $secret['service'] ?? 'pppoe',
           'profile'        => $secret['profile'] ?? 'default',
-          'remote_address' => $secret['remote-address'] ?? '',
+          'remote_address' => $ip,
           'disabled'       => ($secret['disabled'] ?? 'false') === 'true',
           'comment'        => $secret['comment'] ?? '',
           'status'         => $existing ? 'existing' : 'new',
@@ -460,6 +480,7 @@ class MikrotikService
               'serviceMikrotikUser'  => $secret['service'],
               'profileMikrotikUser'  => $secret['profile'],
               'password'             => $secret['password'],
+              'localAdress'          => $secret['remote_address'] ?? $mikrotikDetail->localAdress,
             ]);
             $updated++;
           } else {
@@ -497,6 +518,7 @@ class MikrotikService
               'serviceMikrotikUser' => $secret['service'],
               'profileMikrotikUser' => $secret['profile'],
               'password'            => $secret['password'],
+              'localAdress'         => $secret['remote_address'] ?? null,
             ]);
 
             $created++;
