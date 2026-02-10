@@ -747,6 +747,98 @@
   }
   .leaflet-draw-toolbar { display: none !important; }
 
+  /* ========== INFO PANEL ========== */
+  .info-toggle-btn {
+    position: fixed;
+    top: 80px;
+    left: 12px;
+    z-index: 1001;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 10px;
+    background: #fff;
+    color: #697a8d;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: all 0.2s;
+  }
+  .info-toggle-btn:hover { background: #f5f5f9; }
+  .info-toggle-btn.active { background: #696cff; color: #fff; }
+
+  .info-panel {
+    position: fixed;
+    top: 122px;
+    left: 12px;
+    z-index: 1001;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+    width: 240px;
+    padding: 14px 16px;
+    display: none;
+    animation: infoSlide 0.18s ease-out;
+  }
+  .info-panel.show { display: block; }
+  @keyframes infoSlide { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .info-panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #566a7f;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .info-panel-title i { font-size: 16px; color: #696cff; }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .info-card {
+    background: #f5f5f9;
+    border-radius: 8px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+  .info-card.full-width { grid-column: 1 / -1; }
+  .info-card-value {
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .info-card-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #697a8d;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-top: 2px;
+  }
+  .info-card.olt .info-card-value { color: #e91e63; }
+  .info-card.odc .info-card-value { color: #ff9800; }
+  .info-card.odp .info-card-value { color: #4caf50; }
+  .info-card.client .info-card-value { color: #2196f3; }
+  .info-card.online .info-card-value { color: #4caf50; }
+  .info-card.offline .info-card-value { color: #ff3e1d; }
+  .info-card.full-odc .info-card-value { color: #ff9800; }
+  .info-card.full-odp .info-card-value { color: #e91e63; }
+
+  body.dark-mode .info-toggle-btn { background: rgba(30,30,46,0.9); color: #ccc; }
+  body.dark-mode .info-toggle-btn:hover { background: rgba(40,40,60,0.95); }
+  body.dark-mode .info-toggle-btn.active { background: #696cff; color: #fff; }
+  body.dark-mode .info-panel { background: #2b2c40; }
+  body.dark-mode .info-panel-title { color: #ccc; }
+  body.dark-mode .info-card { background: rgba(255,255,255,0.06); }
+  body.dark-mode .info-card-label { color: #8888a0; }
+
   /* ========== BRANDING ========== */
   .brand-label {
     position: fixed;
@@ -892,6 +984,48 @@
     <div class="filter-actions">
       <button class="fa-all" id="filterSelectAll">Semua</button>
       <button class="fa-none" id="filterSelectNone">Kosongkan</button>
+    </div>
+  </div>
+
+  <!-- Info Panel -->
+  <button class="info-toggle-btn" id="infoToggleBtn" title="Informasi Jaringan">
+    <i class="mdi mdi-information-outline"></i>
+  </button>
+  <div class="info-panel" id="infoPanel">
+    <div class="info-panel-title"><i class="mdi mdi-chart-box-outline"></i> Statistik Jaringan</div>
+    <div class="info-grid">
+      <div class="info-card olt">
+        <div class="info-card-value" id="statOlt">0</div>
+        <div class="info-card-label">OLT</div>
+      </div>
+      <div class="info-card odc">
+        <div class="info-card-value" id="statOdc">0</div>
+        <div class="info-card-label">ODC</div>
+      </div>
+      <div class="info-card odp">
+        <div class="info-card-value" id="statOdp">0</div>
+        <div class="info-card-label">ODP</div>
+      </div>
+      <div class="info-card client">
+        <div class="info-card-value" id="statClient">0</div>
+        <div class="info-card-label">Client</div>
+      </div>
+      <div class="info-card online">
+        <div class="info-card-value" id="statOnline">0</div>
+        <div class="info-card-label">Client On</div>
+      </div>
+      <div class="info-card offline">
+        <div class="info-card-value" id="statOffline">0</div>
+        <div class="info-card-label">Client Off</div>
+      </div>
+      <div class="info-card full-odc">
+        <div class="info-card-value" id="statFullOdc">0</div>
+        <div class="info-card-label">ODC Penuh</div>
+      </div>
+      <div class="info-card full-odp">
+        <div class="info-card-value" id="statFullOdp">0</div>
+        <div class="info-card-label">ODP Penuh</div>
+      </div>
     </div>
   </div>
 
@@ -1047,6 +1181,9 @@ function loadMapData() {
 
       // Apply saved toggle states after data loads
       applyToggleStates();
+
+      // Update info panel stats
+      updateInfoStats(d);
     })
     .catch(e => console.error('Error loading map data:', e));
 }
@@ -1618,6 +1755,50 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   updateFilterCount();
+});
+
+// =============== INFO PANEL ===============
+function updateInfoStats(data) {
+  const olts = data.olts || [];
+  const odcs = data.odcs || [];
+  const odps = data.odps || [];
+  const clients = data.clients || [];
+
+  document.getElementById('statOlt').textContent = olts.length;
+  document.getElementById('statOdc').textContent = odcs.length;
+  document.getElementById('statOdp').textContent = odps.length;
+  document.getElementById('statClient').textContent = clients.length;
+  document.getElementById('statOnline').textContent = clients.filter(c => c.status_client === 'online').length;
+  document.getElementById('statOffline').textContent = clients.filter(c => c.status_client !== 'online').length;
+  document.getElementById('statFullOdc').textContent = odcs.filter(o => o.port > 0 && (o.portSisa || 0) <= 0).length;
+  document.getElementById('statFullOdp').textContent = odps.filter(o => o.port > 0 && (o.portSisa || 0) <= 0).length;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const infoBtn = document.getElementById('infoToggleBtn');
+  const infoPanel = document.getElementById('infoPanel');
+  if (!infoBtn || !infoPanel) return;
+
+  // Restore state from localStorage
+  if (localStorage.getItem('infoPanelOpen') === 'true') {
+    infoPanel.classList.add('show');
+    infoBtn.classList.add('active');
+  }
+
+  infoBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    const open = infoPanel.classList.toggle('show');
+    infoBtn.classList.toggle('active', open);
+    localStorage.setItem('infoPanelOpen', open);
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!infoPanel.contains(e.target) && !infoBtn.contains(e.target)) {
+      infoPanel.classList.remove('show');
+      infoBtn.classList.remove('active');
+      localStorage.setItem('infoPanelOpen', 'false');
+    }
+  });
 });
 
 // =============== MAP TYPE TOGGLE ===============
