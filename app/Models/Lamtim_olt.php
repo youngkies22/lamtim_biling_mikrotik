@@ -13,5 +13,12 @@ class Lamtim_olt extends Model
     'port',
     'sfp',
     'isActive',
+    'latitude',
+    'longitude',
+    'teknologi',
+    'port_pon',
+    'port_uplink',
+    'status',
+    'keterangan',
   ];
 }

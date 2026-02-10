@@ -1,1394 +1,2068 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Google Map - Network Topology</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', sans-serif; overflow: hidden; background: #1a1a2e; }
-    #google-map { width: 100vw; height: 100vh; }
+@extends('layouts/contentNavbarLayout')
 
-    .panel {
-      position: absolute;
-      background: rgba(255, 255, 255, 0.98);
-      backdrop-filter: blur(10px);
-      border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-      z-index: 1000;
-    }
+@section('title', 'Network Topology Map')
 
-    .panel-header {
-      padding: 14px 18px;
-      border-bottom: 1px solid #eee;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
+@section('vendor-style')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+@endsection
 
-    .panel-header h5 { font-size: 13px; font-weight: 600; color: #333; }
-    .panel-body { padding: 14px 18px; }
+@section('page-style')
+<style>
+  html, body {
+    width: 100% !important;
+    height: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
 
-    .control-panel { top: 20px; right: 20px; width: 320px; max-height: calc(100vh - 40px); overflow-y: auto; transition: transform 0.3s ease, opacity 0.3s ease; }
-    .control-panel.hidden { transform: translateX(350px); opacity: 0; pointer-events: none; }
+  .layout-navbar, .layout-menu, .layout-footer, .layout-overlay,
+  nav.layout-navbar, aside.layout-menu {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
 
-    .stats-panel { top: 20px; left: 20px; transition: transform 0.3s ease, opacity 0.3s ease; }
-    .stats-panel.hidden { transform: translateX(-250px); opacity: 0; pointer-events: none; }
+  .layout-wrapper, .layout-page, .content-wrapper,
+  .container-xxl, .container-fluid {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
 
-    /* Toggle Buttons */
-    .panel-toggle {
-      position: absolute;
-      top: 80px;
-      width: 44px;
-      height: 44px;
-      background: rgba(255, 255, 255, 0.95);
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      z-index: 999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-      transition: all 0.3s ease;
-      opacity: 0;
-      pointer-events: none;
-    }
-    .panel-toggle:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2); }
-    .panel-toggle.visible { opacity: 1; pointer-events: auto; }
-    .panel-toggle svg { width: 20px; height: 20px; color: #333; }
-    .panel-toggle-left { left: 20px; }
-    .panel-toggle-right { right: 20px; }
+  .template-customizer, .layout-customizer, .customizer-toggle, .buy-now,
+  #template-customizer, .template-customizer-open-btn, .template-customizer-toggler,
+  [class*="customizer"], [id*="customizer"] {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
 
-    /* Close button in panel header */
-    .panel-close {
-      width: 28px;
-      height: 28px;
-      background: #f5f5f5;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
-    }
-    .panel-close:hover { background: #eee; }
-    .panel-close svg { width: 16px; height: 16px; color: #666; }
+  #map-container {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+  }
 
-    .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-    .stat-item { text-align: center; padding: 10px; background: #f8f9fa; border-radius: 8px; }
-    .stat-value { font-size: 22px; font-weight: 700; color: #333; }
-    .stat-label { font-size: 10px; color: #666; margin-top: 2px; }
-    .stat-item.server { border-left: 3px solid #e91e63; }
-    .stat-item.odc { border-left: 3px solid #ff9800; }
-    .stat-item.odp { border-left: 3px solid #4caf50; }
-    .stat-item.user { border-left: 3px solid #2196f3; }
-    .stat-item.polyline { border-left: 3px solid #9c27b0; }
+  #map { width: 100%; height: 100%; }
 
-    .mode-banner {
-      position: absolute;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 10px 24px;
-      border-radius: 25px;
-      font-weight: 600;
-      font-size: 13px;
-      z-index: 1001;
-      display: none;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    }
+  /* ========== TOGGLE PANEL ========== */
+  .toggle-panel {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 1000;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    max-width: 420px;
+    justify-content: flex-end;
+  }
 
-    .mode-banner.drawing { background: linear-gradient(135deg, #ff9800, #f57c00); color: white; }
-    .mode-banner.editing { background: linear-gradient(135deg, #2196f3, #1976d2); color: white; }
+  .toggle-pill {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    user-select: none;
+  }
 
-    .form-group { margin-bottom: 14px; }
-    .form-label { display: block; font-size: 11px; font-weight: 500; color: #555; margin-bottom: 5px; }
-    .form-select, .form-input {
-      width: 100%;
-      padding: 9px 11px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      font-size: 12px;
-      background: #fff;
-    }
-    .form-select:focus, .form-input:focus { outline: none; border-color: #696cff; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .toggle-pill.active { color: #fff; }
+  .toggle-pill:not(.active) { background: #fff; color: #697a8d; opacity: 0.7; }
 
-    .btn {
-      padding: 9px 14px;
-      border: none;
-      border-radius: 8px;
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-    }
-    .btn-primary { background: #696cff; color: #fff; }
-    .btn-success { background: #71dd37; color: #fff; }
-    .btn-danger { background: #ff3e1d; color: #fff; }
-    .btn-warning { background: #ffab00; color: #fff; }
-    .btn-secondary { background: #6c757d; color: #fff; }
-    .btn-outline { background: transparent; border: 1px solid #ddd; color: #666; }
-    .btn:hover { opacity: 0.9; transform: translateY(-1px); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-    .btn-group { display: flex; gap: 8px; margin-top: 10px; }
-    .btn-group .btn { flex: 1; }
+  .toggle-pill[data-layer="olt"].active { background: #e91e63; }
+  .toggle-pill[data-layer="odc"].active { background: #ff9800; }
+  .toggle-pill[data-layer="odp"].active { background: #4caf50; }
+  .toggle-pill[data-layer="client"].active { background: #2196f3; }
+  .toggle-pill[data-layer="routes"].active { background: #9c27b0; }
+  .toggle-pill[data-layer="labels"].active { background: #607d8b; }
+  .toggle-pill[data-layer="distance"].active { background: #795548; }
 
-    .section-divider { height: 1px; background: #eee; margin: 14px 0; }
-    .section-title { font-size: 10px; font-weight: 600; color: #999; text-transform: uppercase; margin-bottom: 10px; }
+  /* ========== TOP LEFT CONTROLS ========== */
+  .top-controls {
+    position: fixed;
+    top: 12px;
+    left: 55px;
+    z-index: 1000;
+    display: flex;
+    gap: 8px;
+  }
 
-    .toggle-group { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; }
-    .toggle-label { font-size: 12px; color: #333; }
-    .toggle-switch { position: relative; width: 40px; height: 22px; background: #ddd; border-radius: 11px; cursor: pointer; }
-    .toggle-switch.active { background: #696cff; }
-    .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff; border-radius: 50%; transition: 0.3s; }
-    .toggle-switch.active::after { left: 20px; }
+  /* ========== CUSTOM TOAST ========== */
+  .toast-container {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    pointer-events: none;
+  }
 
-    .item-list { max-height: 180px; overflow-y: auto; }
-    .list-item {
-      display: flex;
-      align-items: center;
-      padding: 8px 10px;
-      background: #f8f9fa;
-      border-radius: 6px;
-      margin-bottom: 6px;
-      font-size: 11px;
-    }
-    .list-item:last-child { margin-bottom: 0; }
-    .list-color { width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
-    .list-info { flex: 1; overflow: hidden; }
-    .list-name { font-weight: 500; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .list-meta { font-size: 9px; color: #999; }
-    .btn-delete-sm { width: 22px; height: 22px; padding: 0; border-radius: 4px; font-size: 11px; background: #ff3e1d; color: #fff; border: none; cursor: pointer; }
+  .custom-toast {
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #fff;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.2);
+    pointer-events: auto;
+    animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s forwards;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+  }
 
-    .drawing-info {
-      background: #fff3e0;
-      border: 1px solid #ffcc80;
-      border-radius: 8px;
-      padding: 10px;
-      font-size: 11px;
-      color: #e65100;
-    }
-    .drawing-info strong { display: block; margin-bottom: 4px; }
-    .waypoint-badge { background: #ff9800; color: white; padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; margin-top: 6px; display: inline-block; }
+  .custom-toast.toast-success { background: #4caf50; }
+  .custom-toast.toast-error { background: #ff3e1d; }
+  .custom-toast.toast-info { background: #03c3ec; }
+  .custom-toast.toast-warning { background: #ffab00; color: #333; }
 
-    .loading-overlay {
-      position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(255, 255, 255, 0.9);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      z-index: 2000;
-    }
-    .spinner { width: 36px; height: 36px; border: 3px solid #f3f3f3; border-top: 3px solid #696cff; border-radius: 50%; animation: spin 1s linear infinite; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .loading-text { margin-top: 12px; color: #666; font-size: 13px; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes toastOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-12px); } }
 
-    .info-window { padding: 6px; }
-    .info-window h6 { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #eee; }
-    .info-window p { font-size: 11px; color: #666; margin: 3px 0; }
-    .info-window .badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: 600; color: #fff; }
-    .badge-odc { background: #ff9800; }
-    .badge-odp { background: #4caf50; }
-    .badge-user { background: #2196f3; }
+  .control-btn {
+    padding: 8px 14px;
+    background: #fff;
+    border: 1px solid #d9dee3;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #566a7f;
+  }
 
-    .empty-state { text-align: center; color: #999; font-size: 11px; padding: 20px; }
+  .control-btn:hover { background: #f5f5f9; border-color: #696cff; color: #696cff; }
 
-    .tabs { display: flex; border-bottom: 1px solid #eee; margin-bottom: 14px; }
-    .tab { flex: 1; padding: 10px; text-align: center; font-size: 11px; font-weight: 500; color: #666; cursor: pointer; border-bottom: 2px solid transparent; }
-    .tab.active { color: #696cff; border-bottom-color: #696cff; }
+  /* ========== FAB ========== */
+  .fab-container {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+  }
 
-    ::-webkit-scrollbar { width: 5px; }
-    ::-webkit-scrollbar-track { background: #f1f1f1; }
-    ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+  .fab-main {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #696cff, #5f61e6);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 16px rgba(105,108,255,0.4);
+    cursor: pointer;
+    font-size: 24px;
+    transition: all 0.3s cubic-bezier(0.68,-0.55,0.27,1.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-    @media (max-width: 768px) {
-      .control-panel { width: calc(100vw - 40px); max-width: 320px; }
-      .stats-panel { width: calc(100vw - 40px); max-width: 260px; }
-    }
+  .fab-main:hover { transform: scale(1.1); box-shadow: 0 6px 24px rgba(105,108,255,0.6); }
+  .fab-main.active { transform: rotate(135deg); background: linear-gradient(135deg, #ff3e1d, #e3360e); }
 
-    /* Modal */
-    .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 3000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-overlay.show { display: flex; }
-    .modal {
-      background: #fff;
-      border-radius: 16px;
-      width: 90%;
-      max-width: 500px;
-      max-height: 80vh;
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    }
-    .modal-header {
-      padding: 16px 20px;
-      border-bottom: 1px solid #eee;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .modal-header h4 { font-size: 15px; font-weight: 600; color: #333; }
-    .modal-close { background: none; border: none; font-size: 20px; cursor: pointer; color: #999; }
-    .modal-body { padding: 20px; max-height: 50vh; overflow-y: auto; }
-    .modal-footer { padding: 16px 20px; border-top: 1px solid #eee; display: flex; gap: 10px; justify-content: flex-end; }
+  .fab-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px);
+    transition: all 0.3s;
+  }
 
-    .import-section { margin-bottom: 16px; }
-    .import-section-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 10px 12px;
-      background: #f8f9fa;
-      border-radius: 8px;
-      cursor: pointer;
-      margin-bottom: 8px;
-    }
-    .import-section-header:hover { background: #f0f0f0; }
-    .import-section-title { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-    .import-section-title .badge { padding: 2px 8px; border-radius: 10px; font-size: 10px; color: #fff; }
-    .import-section-count { font-size: 11px; color: #666; }
-    .import-list { max-height: 150px; overflow-y: auto; }
-    .import-item {
-      display: flex;
-      align-items: center;
-      padding: 8px 12px;
-      border-radius: 6px;
-      margin-bottom: 4px;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .import-item:hover { background: #f5f5f5; }
-    .import-item.selected { background: #e3f2fd; }
-    .import-item input[type="checkbox"] { margin-right: 10px; }
-    .import-item-info { flex: 1; }
-    .import-item-name { font-size: 12px; font-weight: 500; color: #333; }
-    .import-item-meta { font-size: 10px; color: #888; }
-    .select-all-btn { font-size: 10px; color: #696cff; cursor: pointer; }
-  </style>
-</head>
-<body>
-  <div id="google-map"></div>
+  .fab-menu.show { opacity: 1; visibility: visible; transform: translateY(0); }
 
-  <div class="loading-overlay" id="loading">
-    <div class="spinner"></div>
-    <div class="loading-text">Memuat peta...</div>
+  .fab-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    background: #fff;
+    border: none;
+    border-radius: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #566a7f;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .fab-item i { font-size: 18px; width: 20px; text-align: center; }
+  .fab-item[data-type="olt"] { color: #e91e63; }
+  .fab-item[data-type="olt"]:hover { background: #e91e63; color: #fff; }
+  .fab-item[data-type="odc"] { color: #ff9800; }
+  .fab-item[data-type="odc"]:hover { background: #ff9800; color: #fff; }
+  .fab-item[data-type="odp"] { color: #4caf50; }
+  .fab-item[data-type="odp"]:hover { background: #4caf50; color: #fff; }
+  .fab-item[data-type="client"] { color: #2196f3; }
+  .fab-item[data-type="client"]:hover { background: #2196f3; color: #fff; }
+
+  /* ========== IMPORT FAB ========== */
+  .import-fab {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #03c3ec, #02a8cc);
+    color: #fff;
+    border: none;
+    box-shadow: 0 4px 14px rgba(3,195,236,0.4);
+    cursor: pointer;
+    font-size: 22px;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .import-fab:hover { transform: scale(1.1); box-shadow: 0 6px 20px rgba(3,195,236,0.6); }
+
+  /* ========== MAP MARKERS ========== */
+  .marker-icon {
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+    border: 2px solid rgba(255,255,255,0.9);
+  }
+
+  .marker-icon i { transform: rotate(45deg); color: #fff; }
+
+  /* Server marker - professional building pin */
+  .marker-server {
+    background: linear-gradient(135deg, #696cff, #5f61e6);
+    width: 44px; height: 44px;
+    border-radius: 12px 12px 12px 2px;
+    transform: none;
+    border: 3px solid #fff;
+    box-shadow: 0 0 14px rgba(105,108,255,0.5), 0 4px 12px rgba(0,0,0,0.35);
+    position: relative;
+  }
+  .marker-server i { font-size: 20px; transform: none; }
+  .marker-server::after {
+    content: '';
+    position: absolute;
+    top: -5px; right: -5px;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: #4caf50;
+    border: 2px solid #fff;
+    box-shadow: 0 0 6px rgba(76,175,80,0.7);
+    animation: server-pulse 2s ease-out infinite;
+  }
+  @keyframes server-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(76,175,80,0.6); }
+    70% { box-shadow: 0 0 0 8px rgba(76,175,80,0); }
+    100% { box-shadow: 0 0 0 0 rgba(76,175,80,0); }
+  }
+  /* OLT markers - rounded square with glow */
+  .marker-olt {
+    background: linear-gradient(135deg, #e91e63, #c2185b);
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    transform: none;
+    border: 2.5px solid #fff;
+    box-shadow: 0 0 10px rgba(233,30,99,0.5), 0 3px 8px rgba(0,0,0,0.3);
+  }
+  .marker-olt i { font-size: 15px; transform: none; }
+  /* ODC markers - hexagon shape */
+  .marker-odc {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    width: 30px; height: 30px;
+    transform: none;
+    border: none;
+    clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+    box-shadow: none;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+  }
+  .marker-odc i { font-size: 13px; transform: none; }
+  .marker-odc-full {
+    background: linear-gradient(135deg, #f44336, #c62828);
+    width: 30px; height: 30px;
+    transform: none;
+    border: none;
+    clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+    box-shadow: none;
+    animation: pulse-red 2s infinite;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+  }
+  .marker-odc-full i { font-size: 13px; transform: none; }
+
+  /* ODP markers - diamond/rotated square shape */
+  .marker-odp {
+    background: linear-gradient(135deg, #4caf50, #388e3c);
+    width: 24px; height: 24px;
+    border-radius: 4px;
+    transform: rotate(45deg);
+    border: 2.5px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+  .marker-odp i { font-size: 12px; transform: rotate(-45deg); }
+  .marker-odp-full {
+    background: linear-gradient(135deg, #f44336, #c62828);
+    width: 24px; height: 24px;
+    border-radius: 4px;
+    transform: rotate(45deg);
+    border: 2.5px solid #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    animation: pulse-red 2s infinite;
+  }
+  .marker-odp-full i { font-size: 12px; transform: rotate(-45deg); }
+
+  @keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(244,67,54,0.5); }
+    50% { box-shadow: 0 0 0 8px rgba(244,67,54,0); }
+  }
+  /* Client markers - circle style with pulse */
+  .marker-client-online {
+    background: linear-gradient(135deg, #2196f3, #1565c0);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    transform: none;
+    border: 2.5px solid #fff;
+    box-shadow: 0 0 8px rgba(33,150,243,0.6), 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .marker-client-online i { font-size: 10px; transform: none; }
+  .marker-client-online::after {
+    content: '';
+    position: absolute;
+    top: -4px; left: -4px;
+    width: calc(100% + 8px); height: calc(100% + 8px);
+    border-radius: 50%;
+    border: 2px solid rgba(33,150,243,0.5);
+    animation: client-pulse 2s ease-out infinite;
+  }
+
+  .marker-client-offline {
+    background: linear-gradient(135deg, #f44336, #c62828);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    transform: none;
+    border: 2.5px solid rgba(255,255,255,0.7);
+    box-shadow: 0 0 6px rgba(244,67,54,0.4), 0 2px 6px rgba(0,0,0,0.3);
+    opacity: 0.8;
+  }
+  .marker-client-offline i { font-size: 10px; transform: none; }
+
+  .marker-client-isolir {
+    background: linear-gradient(135deg, #ff9800, #e65100);
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    transform: none;
+    border: 2.5px solid #fff;
+    box-shadow: 0 0 8px rgba(255,152,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
+  }
+  .marker-client-isolir i { font-size: 10px; transform: none; }
+
+  @keyframes client-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(2.2); opacity: 0; }
+  }
+
+  .marker-label {
+    background: rgba(0,0,0,0.75) !important;
+    border: none !important;
+    color: #fff !important;
+    font-size: 11px !important;
+    font-weight: 500 !important;
+    padding: 2px 8px !important;
+    border-radius: 4px !important;
+    white-space: nowrap !important;
+  }
+
+  .marker-label::before { border-top-color: rgba(0,0,0,0.75) !important; }
+
+  /* ========== POPUP ========== */
+  .popup-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #e9ecef;
+  }
+
+  .popup-btn {
+    flex: 1;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: #fff;
+  }
+
+  .popup-btn-edit { background: #696cff; }
+  .popup-btn-edit:hover { background: #5f61e6; }
+  .popup-btn-delete { background: #ff3e1d; }
+  .popup-btn-delete:hover { background: #e3360e; }
+
+  /* ========== ADD MODE INDICATOR ========== */
+  .add-mode-indicator {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    padding: 16px 28px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 500;
+    z-index: 9999;
+    pointer-events: none;
+    animation: pulse-indicator 2s infinite;
+  }
+
+  @keyframes pulse-indicator { 0%,100% { opacity: 0.7; } 50% { opacity: 1; } }
+
+  #map.adding-marker { cursor: crosshair !important; }
+
+  /* ========== SWAL BOOTSTRAP OVERRIDES ========== */
+  .swal2-popup {
+    border-radius: 0.5rem !important;
+    box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.15) !important;
+  }
+
+  .swal2-title {
+    font-weight: 600 !important;
+    color: #566a7f !important;
+    font-size: 1.125rem !important;
+    padding: 1.25rem 1.5rem 0.5rem !important;
+  }
+
+  .swal2-html-container {
+    padding: 0 1.5rem 1rem !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    text-align: left !important;
+  }
+
+  .swal2-html-container .form-control,
+  .swal2-html-container .form-select {
+    display: block !important;
+    width: 100% !important;
+    padding: 0.4375rem 0.875rem !important;
+    font-size: 0.9375rem !important;
+    color: #697a8d !important;
+    background-color: #fff !important;
+    border: 1px solid #d9dee3 !important;
+    border-radius: 0.375rem !important;
+    transition: border-color 0.15s, box-shadow 0.15s !important;
+  }
+
+  .swal2-html-container .form-control:focus,
+  .swal2-html-container .form-select:focus {
+    border-color: #696cff !important;
+    box-shadow: 0 0.125rem 0.25rem rgba(105,108,255,0.4) !important;
+    outline: 0 !important;
+  }
+
+  .swal2-html-container .form-label {
+    margin-bottom: 0.375rem !important;
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    color: #566a7f !important;
+  }
+
+  .swal2-actions {
+    gap: 0.5rem !important;
+    padding: 0 1.5rem 1.25rem !important;
+  }
+
+  /* ========== SEARCHABLE SECRET DROPDOWN ========== */
+  .secret-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: #fff;
+    border: 1px solid #d9dee3;
+    border-top: none;
+    border-radius: 0 0 0.375rem 0.375rem;
+    max-height: 220px;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  }
+  .secret-dropdown .secret-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.15s;
+  }
+  .secret-dropdown .secret-item:hover,
+  .secret-dropdown .secret-item.active {
+    background: #e7e7ff;
+  }
+  .secret-dropdown .secret-item .secret-name { font-weight: 600; color: #566a7f; }
+  .secret-dropdown .secret-item .secret-info { font-size: 11px; color: #a1acb8; }
+  .secret-dropdown .secret-empty {
+    padding: 12px;
+    text-align: center;
+    color: #a1acb8;
+    font-size: 13px;
+  }
+
+  /* ========== IMPORT MODAL ========== */
+  .import-list { max-height: 350px; overflow-y: auto; }
+
+  .import-item {
+    background: #f5f5f9;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+  }
+
+  .import-item:hover { border-color: #696cff; background: #f0f0ff; }
+
+  .import-item-name { font-weight: 600; color: #566a7f; font-size: 13px; }
+  .import-item-detail { font-size: 11px; color: #a1acb8; }
+
+  /* ========== ANIMATED ROUTE LINES ========== */
+  @keyframes dash-flow {
+    to { stroke-dashoffset: -24; }
+  }
+  @keyframes glow-flow {
+    to { stroke-dashoffset: -185; }
+  }
+  @keyframes traffic-packet {
+    to { stroke-dashoffset: -120; }
+  }
+  @keyframes traffic-trail {
+    to { stroke-dashoffset: -40; }
+  }
+
+  .route-dash-overlay {
+    animation: dash-flow 0.7s linear infinite;
+    stroke: #fff !important;
+    stroke-opacity: 1 !important;
+  }
+
+  .route-glow-dot {
+    animation: glow-flow 2.5s linear infinite;
+    filter: drop-shadow(0 0 6px #fff) drop-shadow(0 0 12px #fff) brightness(2);
+    stroke-opacity: 1 !important;
+    stroke-linecap: round !important;
+  }
+
+  /* Traffic mode - packets + trail */
+  .route-traffic-packet {
+    animation: traffic-packet 1s linear infinite;
+    stroke-opacity: 1 !important;
+    filter: drop-shadow(0 0 3px currentColor) drop-shadow(0 0 6px currentColor);
+  }
+  .route-traffic-trail {
+    animation: traffic-trail 0.6s linear infinite;
+    stroke-opacity: 0.5 !important;
+  }
+
+  /* ========== LINE MODE TOGGLE ========== */
+  .line-mode-btn {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    user-select: none;
+    background: #9c27b0;
+    color: #fff;
+  }
+  .line-mode-btn:hover { opacity: 0.85; }
+
+  /* ========== DISTANCE LABELS ========== */
+  .distance-label {
+    background: rgba(0,0,0,0.7) !important;
+    border: none !important;
+    color: #fff !important;
+    font-size: 10px !important;
+    font-weight: 500 !important;
+    padding: 2px 6px !important;
+    border-radius: 3px !important;
+    white-space: nowrap !important;
+  }
+
+  .distance-label::before { display: none !important; }
+
+  /* ========== ROUTE EDIT ========== */
+  .route-edit-btn {
+    position: fixed;
+    top: 60px;
+    right: 12px;
+    z-index: 1001;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    display: none;
+  }
+
+  /* ========== BRANDING ========== */
+  .brand-label {
+    position: fixed;
+    bottom: 12px;
+    left: 12px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+    pointer-events: none;
+  }
+  .brand-label .brand-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+  .brand-label .brand-team {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.3px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  }
+
+  /* ========== DARK MODE (hanya tile peta yang gelap, marker/garis/UI tetap terang) ========== */
+  body.dark-mode .leaflet-tile-pane {
+    filter: brightness(0.4) saturate(0.6);
+    transition: filter 0.3s;
+  }
+  body.dark-mode .marker-label { background: rgba(30,30,46,0.9) !important; }
+  body.dark-mode .distance-label { background: rgba(30,30,46,0.85) !important; }
+  body.dark-mode .leaflet-control-zoom a { background: rgba(30,30,46,0.85) !important; color: #ccc !important; border-color: #444564 !important; }
+  body.dark-mode .leaflet-control-attribution { background: rgba(30,30,46,0.7) !important; color: #888 !important; }
+  body.dark-mode .leaflet-popup-content-wrapper { background: #2b2c40 !important; color: #d0d0d0 !important; }
+  body.dark-mode .leaflet-popup-tip { background: #2b2c40 !important; }
+  body.dark-mode .leaflet-popup-content .table { color: #d0d0d0 !important; }
+  body.dark-mode .leaflet-popup-content .text-muted { color: #8888a0 !important; }
+  body.dark-mode .popup-btn-edit { background: #3b3c56; color: #8be9fd; border-color: #555577; }
+  body.dark-mode .popup-btn-delete { background: #3b3c56; color: #ff6b81; border-color: #555577; }
+</style>
+@endsection
+
+@section('content')
+<script>
+(function() {
+  document.addEventListener('DOMContentLoaded', function() {
+    ['.layout-navbar','.layout-menu','.layout-footer','.layout-overlay','nav.layout-navbar','aside.layout-menu','#layout-menu'].forEach(s => {
+      document.querySelectorAll(s).forEach(el => { if (el && el.parentNode) el.parentNode.removeChild(el); });
+    });
+  });
+  setTimeout(function() {
+    ['layout-menu','layout-navbar','layout-footer'].forEach(c => {
+      const el = document.querySelector('.' + c);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+  }, 0);
+})();
+</script>
+
+<div id="map-container">
+  <!-- Toggle Panel -->
+  <div class="toggle-panel">
+    <button class="toggle-pill active" data-layer="olt"><i class="mdi mdi-access-point-network"></i> OLT</button>
+    <button class="toggle-pill active" data-layer="odc"><i class="mdi mdi-router-network"></i> ODC</button>
+    <button class="toggle-pill active" data-layer="odp"><i class="mdi mdi-cube-outline"></i> ODP</button>
+    <button class="toggle-pill active" data-layer="client"><i class="mdi mdi-account-outline"></i> Client</button>
+    <button class="toggle-pill active" data-layer="routes"><i class="mdi mdi-vector-polyline"></i> Garis</button>
+    <button class="toggle-pill active" data-layer="labels"><i class="mdi mdi-label-outline"></i> Label</button>
+    <button class="toggle-pill" data-layer="distance"><i class="mdi mdi-ruler"></i> Jarak</button>
+    <button class="line-mode-btn" id="btnLineMode"><i class="mdi mdi-chart-timeline-variant"></i> <span id="lineModeLabel">Normal</span></button>
   </div>
 
-  <!-- Import Modal -->
-  <div class="modal-overlay" id="import-modal">
-    <div class="modal">
-      <div class="modal-header">
-        <h4>Pilih Data untuk Import</h4>
-        <button class="modal-close" id="close-import-modal">&times;</button>
-      </div>
-      <div class="modal-body" id="import-modal-body">
-        <div class="loading-text" style="text-align: center;">Memuat data...</div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-outline" id="cancel-import">Batal</button>
-        <button class="btn btn-primary" id="confirm-import">Import Terpilih</button>
-      </div>
+  <!-- Branding -->
+  <div class="brand-label">
+    <span class="brand-name">LAMTIM-APP</span>
+    <span class="brand-team">codeteam.id</span>
+  </div>
+
+  <!-- Top Controls -->
+  <div class="top-controls">
+    <button class="control-btn" id="toggleMapType"><i class="mdi mdi-satellite-variant"></i> G-SAT</button>
+    <button class="control-btn" id="toggleDarkMode"><i class="mdi mdi-weather-night"></i> Malam</button>
+  </div>
+
+  <!-- FAB -->
+  <div class="fab-container">
+    <div class="fab-menu" id="fabMenu">
+      <button class="fab-item" data-type="olt"><i class="mdi mdi-access-point-network"></i> OLT</button>
+      <button class="fab-item" data-type="odc"><i class="mdi mdi-router-network"></i> ODC</button>
+      <button class="fab-item" data-type="odp"><i class="mdi mdi-cube-outline"></i> ODP</button>
+      <button class="fab-item" data-type="client"><i class="mdi mdi-account-outline"></i> Client</button>
+    </div>
+    <div style="display:flex;gap:12px;align-items:center;">
+      <button class="import-fab" id="btnImport" title="Import Device"><i class="mdi mdi-database-import"></i></button>
+      <button class="fab-main" id="fabMain" title="Tambah Device"><i class="mdi mdi-plus"></i></button>
     </div>
   </div>
 
-  <div class="mode-banner drawing" id="drawing-banner">Mode Gambar - Klik untuk tambah titik</div>
-  <div class="mode-banner editing" id="editing-banner">Mode Edit - Drag marker/jalur untuk pindah</div>
+  <div id="map"></div>
+</div>
+@endsection
 
-  <!-- Toggle Buttons (appear when panels hidden) -->
-  <button class="panel-toggle panel-toggle-left" id="toggle-stats" title="Tampilkan Statistik">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-  </button>
-  <button class="panel-toggle panel-toggle-right" id="toggle-control" title="Tampilkan Panel Kontrol">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M6 9l6-6 6 6M6 15l6 6 6-6"/></svg>
-  </button>
+@section('vendor-script')
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+@endsection
 
-  <div class="panel stats-panel" id="stats-panel">
-    <div class="panel-header">
-      <h5>Statistik</h5>
-      <button class="panel-close" id="close-stats" title="Sembunyikan">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
-    <div class="panel-body">
-      <div class="stats-grid">
-        <div class="stat-item" style="border-left: 3px solid #e91e63;"><div class="stat-value">🖥️</div><div class="stat-label">Server</div></div>
-        <div class="stat-item odc"><div class="stat-value" id="stat-odc">0</div><div class="stat-label">ODC</div></div>
-        <div class="stat-item odp"><div class="stat-value" id="stat-odp">0</div><div class="stat-label">ODP</div></div>
-        <div class="stat-item user"><div class="stat-value" id="stat-user">0</div><div class="stat-label">Pelanggan</div></div>
-      </div>
-      <div style="margin-top: 10px;">
-        <div class="stat-item polyline"><div class="stat-value" id="stat-polyline">0</div><div class="stat-label">Jalur</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="panel control-panel" id="control-panel">
-    <div class="panel-header">
-      <h5>Network Mapping</h5>
-      <button class="panel-close" id="close-control" title="Sembunyikan">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
-    <div class="panel-body">
-      <div class="tabs">
-        <div class="tab active" data-tab="markers">Marker</div>
-        <div class="tab" data-tab="polylines">Jalur</div>
-        <div class="tab" data-tab="settings">Pengaturan</div>
-      </div>
-
-      <!-- MARKERS TAB -->
-      <div id="tab-markers">
-        <div class="section-title">Import Data</div>
-        <button class="btn btn-primary" id="btn-import" style="width: 100%;">+ Pilih ODC/ODP/Pelanggan</button>
-
-        <div class="section-divider"></div>
-
-        <div class="section-title">Tambah Marker Manual</div>
-        <div class="form-group">
-          <label class="form-label">Tipe</label>
-          <select class="form-select" id="marker-type">
-            <option value="">-- Pilih Tipe --</option>
-            <option value="odc">ODC</option>
-            <option value="odp">ODP</option>
-            <option value="user">Pelanggan</option>
-            <option value="custom">Custom</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Nama</label>
-          <input type="text" class="form-input" id="marker-name" placeholder="Nama marker">
-        </div>
-        <button class="btn btn-success" id="btn-add-marker" style="width: 100%;" disabled>Klik Peta untuk Posisi</button>
-
-        <div class="section-divider"></div>
-
-        <div class="section-title">Daftar Marker</div>
-        <div class="item-list" id="marker-list">
-          <p class="empty-state">Belum ada marker</p>
-        </div>
-
-        <button class="btn btn-danger" id="btn-clear-markers" style="width: 100%; margin-top: 10px;">Hapus Semua Marker</button>
-      </div>
-
-      <!-- POLYLINES TAB -->
-      <div id="tab-polylines" style="display: none;">
-        <div class="section-title">Buat Jalur</div>
-
-        <div id="draw-setup">
-          <div class="form-group">
-            <label class="form-label">Warna Cepat</label>
-            <div style="display: flex; gap: 6px; margin-bottom: 10px;">
-              <button class="color-preset" data-color="#ff9800" title="ODC (Orange)" style="width:32px; height:32px; border-radius:6px; border:2px solid #fff; background:#ff9800; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);"></button>
-              <button class="color-preset" data-color="#4caf50" title="ODP (Green)" style="width:32px; height:32px; border-radius:6px; border:2px solid #fff; background:#4caf50; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);"></button>
-              <button class="color-preset" data-color="#2196f3" title="Pelanggan (Blue)" style="width:32px; height:32px; border-radius:6px; border:2px solid #fff; background:#2196f3; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);"></button>
-              <button class="color-preset" data-color="#9c27b0" title="Custom (Purple)" style="width:32px; height:32px; border-radius:6px; border:2px solid #fff; background:#9c27b0; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);"></button>
-              <button class="color-preset" data-color="#e91e63" title="Server (Pink)" style="width:32px; height:32px; border-radius:6px; border:2px solid #fff; background:#e91e63; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.2);"></button>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Warna Custom</label>
-              <input type="color" class="form-input" id="polyline-color" value="#ff9800" style="height: 36px; padding: 3px;">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Tebal</label>
-              <input type="number" class="form-input" id="polyline-weight" value="3" min="1" max="10">
-            </div>
-          </div>
-          <button class="btn btn-warning" id="btn-start-draw" style="width: 100%;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-            Mulai Gambar Jalur
-          </button>
-          <p style="font-size: 10px; color: #888; margin-top: 8px; text-align: center;">Klik marker atau peta untuk membuat jalur</p>
-        </div>
-
-        <div id="drawing-mode" style="display: none;">
-          <div class="drawing-info">
-            <strong>🎯 Mode Gambar Aktif</strong>
-            <span id="draw-instruction">Klik marker awal atau langsung klik peta</span>
-            <div class="waypoint-badge" id="waypoint-count">0 titik</div>
-          </div>
-          <div class="btn-group">
-            <button class="btn btn-outline" id="btn-undo">↩ Undo</button>
-            <button class="btn btn-danger" id="btn-cancel-draw">✕ Batal</button>
-          </div>
-          <button class="btn btn-success" id="btn-save-polyline" style="width: 100%; margin-top: 8px;" disabled>✓ Simpan Jalur</button>
-        </div>
-
-        <div class="section-divider"></div>
-
-        <div class="section-title">Daftar Jalur</div>
-        <div class="item-list" id="polyline-list">
-          <p class="empty-state">Belum ada jalur</p>
-        </div>
-
-        <button class="btn btn-danger" id="btn-clear-polylines" style="width: 100%; margin-top: 10px;">Hapus Semua Jalur</button>
-      </div>
-
-      <!-- SETTINGS TAB -->
-      <div id="tab-settings" style="display: none;">
-        <div class="section-title">Opsi Tampilan</div>
-        <div class="toggle-group">
-          <span class="toggle-label">Tampilkan Jalur</span>
-          <div class="toggle-switch active" id="toggle-polylines"></div>
-        </div>
-        <div class="toggle-group">
-          <span class="toggle-label">Animasi Jalur</span>
-          <div class="toggle-switch active" id="toggle-animation"></div>
-        </div>
-        <div class="toggle-group">
-          <span class="toggle-label">Marker Draggable</span>
-          <div class="toggle-switch active" id="toggle-draggable"></div>
-        </div>
-
-        <div class="section-divider"></div>
-
-        <div class="section-title">Filter Marker</div>
-        <div class="toggle-group">
-          <span class="toggle-label">ODC</span>
-          <div class="toggle-switch active" data-filter="odc"></div>
-        </div>
-        <div class="toggle-group">
-          <span class="toggle-label">ODP</span>
-          <div class="toggle-switch active" data-filter="odp"></div>
-        </div>
-        <div class="toggle-group">
-          <span class="toggle-label">Pelanggan</span>
-          <div class="toggle-switch active" data-filter="user"></div>
-        </div>
-
-        <div class="section-divider"></div>
-
-        <div class="section-title">Info Server</div>
-        <p style="font-size: 11px; color: #666; margin-bottom: 10px;">
-          Lat: {{ $mapCenter['latitude'] }}<br>
-          Lng: {{ $mapCenter['longitude'] }}
-        </p>
-        <button class="btn btn-primary" id="btn-center-server" style="width: 100%;">🖥️ Kembali ke Server</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    let map, infoWindow;
-    let markers = [];
-    let polylines = [];
-    let serverMarker = null;
-    let mapData = null;
-
-    let showPolylines = true;
-    let animatePolylines = true;
-    let markersAreDraggable = true;
-    let visibleTypes = { odc: true, odp: true, user: true };
-
-    let isDrawing = false;
-    let isAddingMarker = false;
-    let drawingState = { type: 'custom', path: [], polyline: null, tempMarkers: [], fromMarker: null, toMarker: null };
-
-    const mapCenter = { lat: parseFloat("{{ $mapCenter['latitude'] }}"), lng: parseFloat("{{ $mapCenter['longitude'] }}") };
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-    let selectOptions = @json($selectOptions ?? ['odcs' => [], 'odps' => [], 'users' => []]);
-
-    function initMap() {
-      try {
-        map = new google.maps.Map(document.getElementById('google-map'), {
-          center: mapCenter,
-          zoom: 14,
-          mapTypeControl: true,
-          fullscreenControl: true,
-          streetViewControl: false,
-          styles: [{ featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] }]
-        });
-
-        infoWindow = new google.maps.InfoWindow();
-
-        map.addListener('click', (e) => {
-          if (isDrawing) {
-            // Try to detect if click is near a marker first
-            const nearestMarker = findNearestMarker(e.latLng);
-            if (nearestMarker) {
-              // Track marker connection
-              if (drawingState.path.length === 0) {
-                drawingState.fromMarker = nearestMarker;
-              } else {
-                drawingState.toMarker = nearestMarker;
-              }
-            }
-            addDrawingPoint(e.latLng);
-          } else if (isAddingMarker) {
-            createMarkerAtPosition(e.latLng);
-          }
-        });
-
-        loadMapData();
-        document.getElementById('loading').style.display = 'none';
-      } catch (error) {
-        console.error('Map init error:', error);
-      }
+@section('page-script')
+<script>
+// =============== SUPPRESS MENU.JS ERRORS ===============
+(function() {
+  const origErr = console.error;
+  console.error = function(...a) {
+    if (a.join(' ').match(/insertBefore|menu\.js/)) return;
+    origErr.apply(console, a);
+  };
+  window.addEventListener('error', function(e) {
+    if (e.filename && (e.filename.includes('menu.js') || e.filename.includes('main.js'))) {
+      e.preventDefault(); e.stopPropagation(); return true;
     }
+  }, true);
+})();
 
-    async function loadMapData() {
-      try {
-        const response = await fetch('{{ route("google-map.data") }}');
-        const result = await response.json();
-        if (result.status && result.data) {
-          mapData = result.data;
-          renderMap();
-          updateStats();
-          renderLists();
-        }
-      } catch (error) {
-        console.error('Error loading data:', error);
-      }
+// =============== GLOBALS ===============
+const CSRF = '{{ csrf_token() }}';
+const BASE = '/google-map';
+let map;
+let tileLayers = {};
+let currentLayer = 'google';
+
+// LayerGroups for toggle
+let layerGroups = {
+  olt: L.layerGroup(),
+  odc: L.layerGroup(),
+  odp: L.layerGroup(),
+  client: L.layerGroup()
+};
+let routeLines = [];
+let routeGlowLines = []; // secondary glow layers for mode 3
+let distanceLabels = [];
+let labelsVisible = true;
+let distanceVisible = false;
+let allMarkers = []; // flat list of all markers for label toggle
+let lineMode = localStorage.getItem('lineMode') || 'normal'; // 'normal', 'dash', 'glow'
+
+let addingMarkerMode = null; // null or 'olt','odc','odp','client'
+let placingImport = null; // null or { type, id }
+let selectOptions = { olts: [], odcs: [], odps: [], kategoris: [], pakets: [], mikrotiks: [] };
+
+// =============== INIT ===============
+function initMap() {
+  const saved = localStorage.getItem('mapState');
+  let center = [-5.1477, 105.2611], zoom = 14;
+  if (saved) { try { const s = JSON.parse(saved); center = [s.lat, s.lng]; zoom = s.zoom; } catch(e){} }
+
+  map = L.map('map', { center, zoom, zoomControl: true });
+  map.on('moveend zoomend', () => {
+    const c = map.getCenter();
+    localStorage.setItem('mapState', JSON.stringify({ lat: c.lat, lng: c.lng, zoom: map.getZoom() }));
+  });
+
+  tileLayers.openstreetmap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 });
+  tileLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '&copy; Esri', maxZoom: 19 });
+  tileLayers.google = L.tileLayer('https://mt{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { attribution: '&copy; Google', maxZoom: 20, subdomains: ['0','1','2','3'] });
+  tileLayers.googleSatellite = L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', { attribution: '&copy; Google', maxZoom: 20, subdomains: ['0','1','2','3'] });
+  // Restore saved map layer
+  const savedLayer = localStorage.getItem('mapLayerType') || 'google';
+  currentLayer = tileLayers[savedLayer] ? savedLayer : 'google';
+  tileLayers[currentLayer].addTo(map);
+  updateLayerButton();
+
+  // Apply dark mode if saved (hanya tile peta yang gelap via CSS filter)
+  const isDark = localStorage.getItem('mapDarkMode') === '1';
+  if (isDark) {
+    document.body.classList.add('dark-mode');
+  }
+  updateDarkModeButton();
+
+  // Add layer groups to map
+  Object.values(layerGroups).forEach(lg => lg.addTo(map));
+
+  // Map click handler for add/import mode
+  map.on('click', onMapClick);
+
+  loadMapData();
+  loadSelectOptions();
+}
+
+function updateLayerButton() {
+  const btn = document.getElementById('toggleMapType');
+  const labels = { google: 'G-SAT', googleSatellite: 'OSM', openstreetmap: 'SATELIT', satellite: 'GOOGLE' };
+  const icons = { google: 'satellite-variant', googleSatellite: 'map', openstreetmap: 'satellite-variant', satellite: 'google' };
+  btn.innerHTML = `<i class="mdi mdi-${icons[currentLayer] || 'map'}"></i> ${labels[currentLayer] || 'MAP'}`;
+}
+
+// =============== DATA LOADING ===============
+function loadMapData() {
+  fetch(`${BASE}/data`)
+    .then(r => r.json())
+    .then(res => {
+      if (!res.status) return;
+      const d = res.data;
+      clearMap();
+
+      // Server marker
+      if (d.server) addServerMarker(d.server);
+
+      // Device markers
+      (d.olts || []).forEach(o => addDeviceMarker('olt', o));
+      (d.odcs || []).forEach(o => addDeviceMarker('odc', o));
+      (d.odps || []).forEach(o => addDeviceMarker('odp', o));
+      (d.clients || []).forEach(o => addDeviceMarker('client', o));
+
+      // Routes
+      (d.routes || []).forEach(r => addRouteLine(r));
+    })
+    .catch(e => console.error('Error loading map data:', e));
+}
+
+function loadSelectOptions() {
+  fetch(`${BASE}/select-options`)
+    .then(r => r.json())
+    .then(res => { if (res.success) selectOptions = res.data; })
+    .catch(e => console.error('Error loading select options:', e));
+}
+
+function clearMap() {
+  Object.values(layerGroups).forEach(lg => lg.clearLayers());
+  routeLines.forEach(rl => map.removeLayer(rl));
+  routeLines = [];
+  routeGlowLines.forEach(gl => map.removeLayer(gl));
+  routeGlowLines = [];
+  distanceLabels.forEach(dl => map.removeLayer(dl));
+  distanceLabels = [];
+  allMarkers = [];
+  if (window._serverMarker) { map.removeLayer(window._serverMarker); window._serverMarker = null; }
+}
+
+// =============== SERVER MARKER ===============
+function addServerMarker(d) {
+  const icon = L.divIcon({
+    className: 'custom-marker',
+    html: '<div class="marker-icon marker-server"><i class="mdi mdi-office-building"></i></div>',
+    iconSize: [44, 44], iconAnchor: [22, 44]
+  });
+  const m = L.marker([d.lat, d.lng], { icon, draggable: false });
+  m.bindTooltip(d.nama, { permanent: true, direction: 'top', className: 'marker-label', offset: [0, -18] });
+  m.bindPopup(`<div><h6 class="mb-1"><i class="mdi mdi-office-building me-1" style="color:#696cff"></i>${d.nama}</h6><small class="text-muted">Lokasi Server Utama</small></div>`);
+  m.addTo(map);
+  m._isLabel = true;
+  allMarkers.push(m);
+  window._serverMarker = m;
+}
+
+// =============== DEVICE MARKERS ===============
+function addDeviceMarker(type, d) {
+  const odcFull = (type === 'odc' && d.port > 0 && (d.portSisa || 0) <= 0);
+  const odpFull = (type === 'odp' && d.port > 0 && (d.portSisa || 0) <= 0);
+  const configs = {
+    olt:    { cls: 'marker-olt', icon: 'mdi-access-point-network', size: [32,32], anchor: [16,16], tOffset: [0,-18] },
+    odc:    { cls: odcFull ? 'marker-odc-full' : 'marker-odc', icon: odcFull ? 'mdi-close-network' : 'mdi-router-network', size: [30,30], anchor: [15,15], tOffset: [0,-18] },
+    odp:    { cls: odpFull ? 'marker-odp-full' : 'marker-odp', icon: odpFull ? 'mdi-close-network' : 'mdi-cube-outline', size: [24,24], anchor: [12,12], tOffset: [0,-15] },
+    client: { cls: d.status_client === 'online' ? 'marker-client-online' : (d.status_client === 'isolir' ? 'marker-client-isolir' : 'marker-client-offline'), icon: 'mdi-account', size: [22,22], anchor: [11,11], tOffset: [0,-14] }
+  };
+  const cfg = configs[type];
+  const leafIcon = L.divIcon({
+    className: 'custom-marker',
+    html: `<div class="marker-icon ${cfg.cls}"><i class="mdi ${cfg.icon}"></i></div>`,
+    iconSize: cfg.size, iconAnchor: cfg.anchor
+  });
+
+  const m = L.marker([d.lat, d.lng], { icon: leafIcon, draggable: true });
+
+  // Tooltip (label)
+  m.bindTooltip(d.nama, { permanent: true, direction: 'top', className: 'marker-label', offset: cfg.tOffset });
+
+  // Popup
+  m.bindPopup(buildPopupContent(type, d), { maxWidth: 280 });
+
+  // Drag to update position + redraw lines
+  m.on('dragend', function(e) {
+    const p = e.target.getLatLng();
+    apiFetch(`${BASE}/position/${type}/${d.id}`, 'PUT', { latitude: p.lat, longitude: p.lng })
+      .then(() => { showToast('Posisi diperbarui', 'success'); loadMapData(); })
+      .catch(() => showToast('Gagal update posisi', 'error'));
+  });
+
+  m._dtype = type;
+  m._did = d.id;
+  m._ddata = d;
+  m._isLabel = true;
+
+  layerGroups[type].addLayer(m);
+  allMarkers.push(m);
+}
+
+function buildPopupContent(type, d) {
+  let html = '<div style="min-width:200px;">';
+  if (type === 'olt') {
+    html += `<h6 class="mb-2"><i class="mdi mdi-access-point-network me-1" style="color:#e91e63"></i>${d.nama}</h6>`;
+    html += `<table class="table table-sm mb-0" style="font-size:12px;">`;
+    html += row('Kode', d.kode);
+    html += row('IP', d.ip || '-');
+    html += row('Teknologi', d.teknologi || '-');
+    html += row('Port PON', d.port_pon || '-');
+    html += row('Port Uplink', d.port_uplink || '-');
+    html += `</table>`;
+  } else if (type === 'odc') {
+    const used = (d.port || 0) - (d.portSisa || 0);
+    const isFull = d.port > 0 && (d.portSisa || 0) <= 0;
+    html += `<h6 class="mb-2"><i class="mdi ${isFull ? 'mdi-close-network' : 'mdi-router-network'} me-1" style="color:${isFull ? '#f44336' : '#ff9800'}"></i>${d.nama} ${isFull ? '<span class="badge bg-danger" style="font-size:10px;">PORT PENUH</span>' : ''}</h6>`;
+    html += `<table class="table table-sm mb-0" style="font-size:12px;">`;
+    html += row('Kode', d.kode);
+    html += row('Parent OLT', d.olt_nama || '-');
+    html += row('Total Port', d.port || 0);
+    html += row('Terpakai', used);
+    html += row('Tersedia', isFull ? '<span class="text-danger fw-bold">0 (PENUH)</span>' : (d.portSisa || 0));
+    html += `</table>`;
+  } else if (type === 'odp') {
+    const used = (d.port || 0) - (d.portSisa || 0);
+    const isFull = d.port > 0 && (d.portSisa || 0) <= 0;
+    html += `<h6 class="mb-2"><i class="mdi ${isFull ? 'mdi-close-network' : 'mdi-cube-outline'} me-1" style="color:${isFull ? '#f44336' : '#4caf50'}"></i>${d.nama} ${isFull ? '<span class="badge bg-danger" style="font-size:10px;">PORT PENUH</span>' : ''}</h6>`;
+    html += `<table class="table table-sm mb-0" style="font-size:12px;">`;
+    html += row('Kode', d.kode);
+    html += row('Tipe', d.tipe || 'HTB');
+    if (d.odp_parent_nama) html += row('Parent ODP', `<span class="badge bg-label-purple">${d.odp_parent_nama}</span>`);
+    html += row('Parent ODC', d.odc_nama || '-');
+    html += row('Total Port', d.port || 0);
+    html += row('Terpakai', used);
+    html += row('Tersedia', isFull ? '<span class="text-danger fw-bold">0 (PENUH)</span>' : (d.portSisa || 0));
+    html += row('Kabel', d.kabel || '-');
+    html += `</table>`;
+  } else if (type === 'client') {
+    const st = d.status_client || 'offline';
+    const stColor = st === 'online' ? 'success' : (st === 'isolir' ? 'warning' : 'secondary');
+    const stLabel = st.toUpperCase();
+    html += `<h6 class="mb-2"><i class="mdi mdi-account me-1" style="color:#2196f3"></i>${d.nama}</h6>`;
+    html += `<table class="table table-sm mb-0" style="font-size:12px;">`;
+    html += row('IP', d.ip || '-');
+    html += row('Parent ODP', d.odp_nama || '-');
+    html += row('Status', `<span class="badge bg-${stColor}">${stLabel}</span>`);
+    html += `</table>`;
+  }
+  html += `<div class="popup-actions">`;
+  html += `<button onclick="editDevice('${type}',${d.id})" class="popup-btn popup-btn-edit"><i class="mdi mdi-pencil"></i> Edit</button>`;
+  html += `<button onclick="deleteDevice('${type}',${d.id})" class="popup-btn popup-btn-delete"><i class="mdi mdi-delete"></i> Hapus</button>`;
+  html += `</div></div>`;
+  return html;
+}
+
+function row(label, val) {
+  return `<tr><td class="text-muted" style="white-space:nowrap;"><strong>${label}</strong></td><td>${val}</td></tr>`;
+}
+
+// =============== ROUTE LINES ===============
+function getLineStyle(color) {
+  const c = color || '#9c27b0';
+  if (lineMode === 'dash') {
+    // Solid base line (warna asli, lebih tebal dari dash putih)
+    return { color: c, weight: 7, opacity: 1, dashArray: null, className: '' };
+  } else if (lineMode === 'glow') {
+    // Solid base line for glow
+    return { color: c, weight: 3, opacity: 0.9, dashArray: null, className: '' };
+  } else if (lineMode === 'traffic') {
+    // Dark semi-transparent base (seperti kabel)
+    return { color: c, weight: 5, opacity: 0.35, dashArray: null, className: '' };
+  }
+  // normal
+  return { color: c, weight: 3, opacity: 0.7, dashArray: null, className: '' };
+}
+
+function getDashOverlayStyle() {
+  // White dashes running on top of solid base
+  return { color: '#ffffff', weight: 6, opacity: 1, dashArray: '12, 12', lineCap: 'round', className: 'route-dash-overlay' };
+}
+
+function getGlowOverlayStyle(color) {
+  const c = color || '#9c27b0';
+  // Multiple dots chasing each other, spaced out
+  return { color: '#ffffff', weight: 6, opacity: 1, dashArray: '5, 180', lineCap: 'round', className: 'route-glow-dot' };
+}
+
+function getTrafficOverlayStyles(color) {
+  const c = color || '#9c27b0';
+  return [
+    // Layer 1: small trail dots (lalu lintas kecil)
+    { color: c, weight: 3, opacity: 0.5, dashArray: '4, 36', lineCap: 'round', className: 'route-traffic-trail' },
+    // Layer 2: bright packets (paket data berjalan)
+    { color: '#fff', weight: 5, opacity: 1, dashArray: '20, 100', lineCap: 'round', className: 'route-traffic-packet' },
+  ];
+}
+
+function addRouteLine(r) {
+  if (!r.coords || r.coords.length < 2) return;
+  const latlngs = r.coords.map(c => [c.lat, c.lng]);
+
+  // Client offline/isolir = garis merah putus-putus statis, tanpa animasi
+  const isDisconnected = r.client_status && r.client_status !== 'online';
+
+  const style = isDisconnected
+    ? { color: '#f44336', weight: 3, opacity: 0.8, dashArray: null, className: '' }
+    : getLineStyle(r.color);
+  const line = L.polyline(latlngs, style);
+
+  // Hover effect
+  line.on('mouseover', function() { this.setStyle({ weight: this.options.weight + 2, opacity: 1 }); });
+  line.on('mouseout', function() {
+    if (isDisconnected) {
+      this.setStyle({ weight: 3, opacity: 0.8 });
+    } else {
+      const s = getLineStyle(r.color);
+      this.setStyle({ weight: s.weight, opacity: s.opacity });
     }
+  });
 
-    function renderMap() {
-      clearAllMapObjects();
+  // Click to edit waypoints
+  line.on('click', function(e) {
+    L.DomEvent.stopPropagation(e);
+    if (r.to_type && r.to_id) {
+      enableRouteEdit(line, r.to_type, r.to_id, r.color);
+    }
+  });
 
-      // Render server marker first (always visible)
-      if (mapData.server) {
-        renderServerMarker(mapData.server);
-      }
+  line._routeData = r;
+  // Base line dulu
+  line.addTo(map);
+  routeLines.push(line);
 
-      // Render markers
-      (mapData.markers || []).forEach(m => {
-        if (visibleTypes[m.tipe] !== false) {
-          const marker = createMarker(m);
-          markers.push(marker);
-        }
+  // Overlay di atas base line (HANYA untuk client online / route non-client)
+  if (!isDisconnected) {
+    if (lineMode === 'dash') {
+      const dashOverlay = L.polyline(latlngs, getDashOverlayStyle());
+      dashOverlay.addTo(map);
+      routeGlowLines.push(dashOverlay);
+    } else if (lineMode === 'glow') {
+      const glowLine = L.polyline(latlngs, getGlowOverlayStyle(r.color));
+      glowLine.addTo(map);
+      routeGlowLines.push(glowLine);
+    } else if (lineMode === 'traffic') {
+      getTrafficOverlayStyles(r.color).forEach(s => {
+        const overlay = L.polyline(latlngs, s);
+        overlay.addTo(map);
+        routeGlowLines.push(overlay);
+      });
+    }
+  }
+
+  // Hitung jarak total dan tampilkan label
+  let totalDist = 0;
+  for (let i = 0; i < latlngs.length - 1; i++) {
+    totalDist += map.distance(L.latLng(latlngs[i][0], latlngs[i][1]), L.latLng(latlngs[i+1][0], latlngs[i+1][1]));
+  }
+  const midIdx = Math.floor(latlngs.length / 2);
+  const midA = latlngs[midIdx - 1] || latlngs[0];
+  const midB = latlngs[midIdx];
+  const midLat = (midA[0] + midB[0]) / 2;
+  const midLng = (midA[1] + midB[1]) / 2;
+  const distStr = totalDist >= 1000 ? (totalDist / 1000).toFixed(2) + ' km' : Math.round(totalDist) + ' m';
+  const distLabel = L.tooltip({ permanent: true, direction: 'center', className: 'distance-label' })
+    .setLatLng([midLat, midLng])
+    .setContent(distStr);
+  if (distanceVisible) distLabel.addTo(map);
+  distanceLabels.push(distLabel);
+}
+
+// =============== ROUTE WAYPOINT EDITING ===============
+let editingRoute = null;
+let editMarkers = [];
+
+function enableRouteEdit(line, toType, toId, color) {
+  if (editingRoute) disableRouteEdit(false);
+
+  editingRoute = { line, toType, toId, color };
+  line.setStyle({ color: '#ff9800', weight: 5, opacity: 1 });
+
+  const latlngs = line.getLatLngs();
+  editMarkers = [];
+
+  latlngs.forEach((ll, idx) => {
+    const isEndpoint = idx === 0 || idx === latlngs.length - 1;
+    const cm = L.circleMarker(ll, {
+      radius: isEndpoint ? 5 : 7,
+      fillColor: isEndpoint ? '#666' : '#ff9800',
+      color: '#fff',
+      weight: 2,
+      fillOpacity: 1
+    }).addTo(map);
+
+    cm._idx = idx;
+    cm._isEndpoint = isEndpoint;
+
+    if (!isEndpoint) {
+      // Drag waypoint
+      cm.on('mousedown', function(e) {
+        L.DomEvent.stopPropagation(e);
+        map.dragging.disable();
+        const onMove = (ev) => { cm.setLatLng(ev.latlng); updateRouteFromMarkers(); };
+        const onUp = () => { map.off('mousemove', onMove); map.off('mouseup', onUp); map.dragging.enable(); };
+        map.on('mousemove', onMove);
+        map.on('mouseup', onUp);
       });
 
-      // Render polylines
-      if (showPolylines) {
-        (mapData.polylines || []).forEach(p => {
-          if (p.koordinat && p.koordinat.length >= 2) {
-            const pl = createPolyline(p);
-            polylines.push(pl);
-          }
-        });
-      }
-
-      fitBounds();
-    }
-
-    function renderServerMarker(data) {
-      if (serverMarker) {
-        serverMarker.setMap(null);
-      }
-
-      serverMarker = new google.maps.Marker({
-        position: { lat: data.latitude, lng: data.longitude },
-        map: map,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 14,
-          fillColor: '#e91e63',
-          fillOpacity: 1,
-          strokeColor: '#fff',
-          strokeWeight: 3,
-        },
-        title: data.nama,
-        zIndex: 9999,
-        draggable: false
-      });
-
-      // Add pulsing effect
-      const pulseMarker = new google.maps.Marker({
-        position: { lat: data.latitude, lng: data.longitude },
-        map: map,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 20,
-          fillColor: '#e91e63',
-          fillOpacity: 0.3,
-          strokeColor: '#e91e63',
-          strokeWeight: 1,
-        },
-        zIndex: 9998
-      });
-
-      serverMarker.addListener('click', () => {
-        infoWindow.setContent(`
-          <div class="info-window">
-            <h6>🖥️ ${data.nama}</h6>
-            <p><strong>Titik Pusat Server</strong></p>
-            <p style="color:#999; font-size:9px;">Lat: ${data.latitude.toFixed(6)}, Lng: ${data.longitude.toFixed(6)}</p>
-          </div>
-        `);
-        infoWindow.open(map, serverMarker);
-      });
-    }
-
-    function createMarker(data) {
-      const icons = {
-        odc: { url: 'http://maps.google.com/mapfiles/ms/icons/orange-dot.png', scaledSize: new google.maps.Size(38, 38) },
-        odp: { url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', scaledSize: new google.maps.Size(34, 34) },
-        user: { url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png', scaledSize: new google.maps.Size(30, 30) },
-        custom: { url: 'http://maps.google.com/mapfiles/ms/icons/purple-dot.png', scaledSize: new google.maps.Size(32, 32) }
-      };
-
-      const marker = new google.maps.Marker({
-        position: { lat: data.latitude, lng: data.longitude },
-        map: map,
-        icon: icons[data.tipe] || icons.custom,
-        title: data.nama,
-        draggable: markersAreDraggable,
-        markerId: data.id,
-        markerType: data.tipe,
-        markerData: data
-      });
-
-      marker.addListener('click', () => {
-        if (isDrawing) {
-          // Track which marker is being connected
-          if (drawingState.path.length === 0) {
-            // First point - this is the "from" marker
-            drawingState.fromMarker = { id: data.id, type: data.tipe, ref_id: data.ref_id || null };
-          } else {
-            // Last point - this is the "to" marker
-            drawingState.toMarker = { id: data.id, type: data.tipe, ref_id: data.ref_id || null };
-          }
-          // Add marker position to drawing path
-          addDrawingPoint(marker.getPosition());
-        } else {
-          showMarkerInfo(marker, data);
-        }
-      });
-
-      marker.addListener('dragend', async () => {
-        const pos = marker.getPosition();
-        await updateMarkerPosition(data.id, pos.lat(), pos.lng());
-      });
-
-      return marker;
-    }
-
-    function showMarkerInfo(marker, data) {
-      const badges = { odc: 'badge-odc', odp: 'badge-odp', user: 'badge-user', custom: 'badge-odc' };
-      const labels = { odc: 'ODC', odp: 'ODP', user: 'Pelanggan', custom: 'Custom' };
-
-      let content = `<div class="info-window">
-        <h6><span class="badge ${badges[data.tipe]}">${labels[data.tipe]}</span></h6>`;
-
-      const ed = data.extra_data || {};
-
-      if (data.tipe === 'odc') {
-        // ODC Info Window
-        content += `<p><strong>Nama:</strong> ${data.nama}</p>`;
-        content += `<p><strong>Port:</strong> ${ed.port ?? '-'}</p>`;
-        content += `<p><strong>Port Sisa:</strong> ${ed.portSisa ?? '-'}</p>`;
-        content += `<p><strong>Total ODP:</strong> ${ed.totalOdp ?? 0}</p>`;
-        content += `<p><strong>Total User:</strong> ${ed.totalUser ?? 0}</p>`;
-      } else if (data.tipe === 'odp') {
-        // ODP Info Window
-        content += `<p><strong>Nama:</strong> ${data.nama}</p>`;
-        content += `<p><strong>Port:</strong> ${ed.port ?? '-'}</p>`;
-        content += `<p><strong>Port Sisa:</strong> ${ed.portSisa ?? '-'}</p>`;
-        content += `<p><strong>Total User:</strong> ${ed.totalUser ?? 0}</p>`;
-      } else if (data.tipe === 'user') {
-        // User Info Window
-        content += `<p><strong>ID User:</strong> ${ed.idUser ?? data.ref_id ?? '-'}</p>`;
-        content += `<p><strong>Nama:</strong> ${data.nama}</p>`;
-        content += `<p><strong>Kategori:</strong> ${ed.kategori ?? '-'}</p>`;
-        content += `<p><strong>Paket:</strong> ${ed.paket ?? '-'}</p>`;
-      } else {
-        // Custom/other marker
-        content += `<p><strong>Nama:</strong> ${data.nama}</p>`;
-      }
-
-      content += `<p style="color:#999; font-size:9px; margin-top:6px;">Lat: ${data.latitude.toFixed(6)}, Lng: ${data.longitude.toFixed(6)}</p></div>`;
-
-      infoWindow.setContent(content);
-      infoWindow.open(map, marker);
-    }
-
-    async function updateMarkerPosition(id, lat, lng) {
-      try {
-        await fetch(`/google-map/marker/${id}/position`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-          body: JSON.stringify({ latitude: lat, longitude: lng })
-        });
-      } catch (error) {
-        console.error('Error updating marker position:', error);
-      }
-    }
-
-    function createPolyline(data) {
-      const path = data.koordinat.map(c => ({ lat: parseFloat(c.lat), lng: parseFloat(c.lng) }));
-
-      const polyline = new google.maps.Polyline({
-        path: path,
-        geodesic: true,
-        strokeColor: data.warna || '#3388ff',
-        strokeOpacity: animatePolylines ? 0 : 0.9,
-        strokeWeight: data.ketebalan || 3,
-        editable: false, // No visible edit points
-        map: map,
-        polylineId: data.id
-      });
-
-      if (animatePolylines) {
-        const lineSymbol = { path: 'M 0,-1 0,1', strokeOpacity: 1, strokeColor: data.warna || '#3388ff', scale: data.ketebalan || 3 };
-        polyline.setOptions({ icons: [{ icon: lineSymbol, offset: '0', repeat: '20px' }] });
-
-        let count = 0;
-        polyline.animateInterval = setInterval(() => {
-          if (!animatePolylines || !polyline.getMap()) { clearInterval(polyline.animateInterval); return; }
-          count = (count + 1) % 200;
-          const icons = polyline.get('icons');
-          icons[0].offset = (count / 2) + '%';
-          polyline.set('icons', icons);
-        }, 50);
-      }
-
-      return polyline;
-    }
-
-    function clearAllMapObjects() {
-      markers.forEach(m => m.setMap(null));
-      markers = [];
-      polylines.forEach(p => { if (p.animateInterval) clearInterval(p.animateInterval); p.setMap(null); });
-      polylines = [];
-    }
-
-    function fitBounds() {
-      const bounds = new google.maps.LatLngBounds();
-
-      // Always include server marker
-      if (serverMarker) {
-        bounds.extend(serverMarker.getPosition());
-      }
-
-      // Include all other markers
-      markers.forEach(m => bounds.extend(m.getPosition()));
-
-      if (markers.length === 0 && !serverMarker) return;
-
-      if (markers.length === 0 && serverMarker) {
-        // Only server marker - just center on it
-        map.setCenter(serverMarker.getPosition());
-        map.setZoom(14);
-      } else {
-        map.fitBounds(bounds);
-        // Limit max zoom out - keep it reasonable
-        google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
-          if (map.getZoom() < 12) {
-            map.setZoom(12);
-          }
-        });
-      }
-    }
-
-    function centerOnServer() {
-      if (serverMarker) {
-        map.setCenter(serverMarker.getPosition());
-        map.setZoom(14);
-      }
-    }
-
-    function updateStats() {
-      const stats = mapData.statistics || {};
-      document.getElementById('stat-odc').textContent = stats.odc || 0;
-      document.getElementById('stat-odp').textContent = stats.odp || 0;
-      document.getElementById('stat-user').textContent = stats.user || 0;
-      document.getElementById('stat-polyline').textContent = (mapData.polylines || []).length;
-    }
-
-    function renderLists() {
-      // Marker list
-      const markerList = document.getElementById('marker-list');
-      const markerData = mapData.markers || [];
-      if (markerData.length === 0) {
-        markerList.innerHTML = '<p class="empty-state">Belum ada marker. Klik Import untuk memulai.</p>';
-      } else {
-        const colors = { odc: '#ff9800', odp: '#4caf50', user: '#2196f3', custom: '#9c27b0' };
-        markerList.innerHTML = markerData.map(m => `
-          <div class="list-item">
-            <span class="list-color" style="background: ${colors[m.tipe]}"></span>
-            <div class="list-info">
-              <div class="list-name">${m.nama}</div>
-              <div class="list-meta">${m.tipe.toUpperCase()}</div>
-            </div>
-            <button class="btn-delete-sm" onclick="deleteMarker(${m.id})">×</button>
-          </div>
-        `).join('');
-      }
-
-      // Polyline list
-      const polylineList = document.getElementById('polyline-list');
-      const polylineData = mapData.polylines || [];
-      if (polylineData.length === 0) {
-        polylineList.innerHTML = '<p class="empty-state">Belum ada jalur</p>';
-      } else {
-        const typeLabels = { odc_to_odp: 'ODC→ODP', odp_to_odp: 'ODP→ODP', odp_to_user: 'ODP→User', custom: 'Custom' };
-        polylineList.innerHTML = polylineData.map(p => `
-          <div class="list-item">
-            <span class="list-color" style="background: ${p.warna || '#3388ff'}"></span>
-            <div class="list-info">
-              <div class="list-name">${p.nama || 'Jalur #' + p.id}</div>
-              <div class="list-meta">${typeLabels[p.tipe] || p.tipe} (${p.koordinat?.length || 0} titik)</div>
-            </div>
-            <button class="btn-delete-sm" onclick="deletePolyline(${p.id})">×</button>
-          </div>
-        `).join('');
-      }
-
-      // Update select options from markers
-      updateSelectOptions();
-    }
-
-    function updateSelectOptions() {
-      const markerData = mapData.markers || [];
-      selectOptions.odcs = markerData.filter(m => m.tipe === 'odc');
-      selectOptions.odps = markerData.filter(m => m.tipe === 'odp');
-      selectOptions.users = markerData.filter(m => m.tipe === 'user');
-    }
-
-    // === MARKER ACTIONS ===
-
-    let availableItems = { odcs: [], odps: [], users: [] };
-    let selectedItems = { odc_ids: [], odp_ids: [], user_ids: [] };
-
-    async function openImportModal() {
-      document.getElementById('import-modal').classList.add('show');
-      document.getElementById('import-modal-body').innerHTML = '<div class="loading-text" style="text-align: center;">Memuat data...</div>';
-
-      try {
-        const response = await fetch('{{ route("google-map.marker.available") }}');
-        const result = await response.json();
-        if (result.status) {
-          availableItems = result.data;
-          selectedItems = { odc_ids: [], odp_ids: [], user_ids: [] };
-          renderImportModal();
-        }
-      } catch (error) {
-        document.getElementById('import-modal-body').innerHTML = '<div class="empty-state">Gagal memuat data</div>';
-      }
-    }
-
-    function renderImportModal() {
-      const body = document.getElementById('import-modal-body');
-      let html = '';
-
-      // ODC Section
-      html += `<div class="import-section">
-        <div class="import-section-header">
-          <div class="import-section-title">
-            <span class="badge" style="background:#ff9800">ODC</span>
-            ODC (${availableItems.odcs.length} tersedia)
-          </div>
-          <span class="select-all-btn" onclick="toggleSelectAll('odc')">Pilih Semua</span>
-        </div>
-        <div class="import-list">
-          ${availableItems.odcs.length === 0 ? '<div class="empty-state">Semua ODC sudah di-import</div>' :
-            availableItems.odcs.map(o => `
-              <label class="import-item" onclick="toggleItem('odc', ${o.id})">
-                <input type="checkbox" id="odc-${o.id}" ${selectedItems.odc_ids.includes(o.id) ? 'checked' : ''}>
-                <div class="import-item-info">
-                  <div class="import-item-name">${o.nama}</div>
-                  <div class="import-item-meta">${o.info}</div>
-                </div>
-              </label>
-            `).join('')}
-        </div>
-      </div>`;
-
-      // ODP Section
-      html += `<div class="import-section">
-        <div class="import-section-header">
-          <div class="import-section-title">
-            <span class="badge" style="background:#4caf50">ODP</span>
-            ODP (${availableItems.odps.length} tersedia)
-          </div>
-          <span class="select-all-btn" onclick="toggleSelectAll('odp')">Pilih Semua</span>
-        </div>
-        <div class="import-list">
-          ${availableItems.odps.length === 0 ? '<div class="empty-state">Semua ODP sudah di-import</div>' :
-            availableItems.odps.map(o => `
-              <label class="import-item" onclick="toggleItem('odp', ${o.id})">
-                <input type="checkbox" id="odp-${o.id}" ${selectedItems.odp_ids.includes(o.id) ? 'checked' : ''}>
-                <div class="import-item-info">
-                  <div class="import-item-name">${o.nama}</div>
-                  <div class="import-item-meta">${o.info}</div>
-                </div>
-              </label>
-            `).join('')}
-        </div>
-      </div>`;
-
-      // User Section
-      html += `<div class="import-section">
-        <div class="import-section-header">
-          <div class="import-section-title">
-            <span class="badge" style="background:#2196f3">Pelanggan</span>
-            Pelanggan (${availableItems.users.length} tersedia)
-          </div>
-          <span class="select-all-btn" onclick="toggleSelectAll('user')">Pilih Semua</span>
-        </div>
-        <div class="import-list">
-          ${availableItems.users.length === 0 ? '<div class="empty-state">Semua Pelanggan sudah di-import</div>' :
-            availableItems.users.map(u => `
-              <label class="import-item" onclick="toggleItem('user', ${u.id})">
-                <input type="checkbox" id="user-${u.id}" ${selectedItems.user_ids.includes(u.id) ? 'checked' : ''}>
-                <div class="import-item-info">
-                  <div class="import-item-name">${u.nama}</div>
-                  <div class="import-item-meta">${u.info}</div>
-                </div>
-              </label>
-            `).join('')}
-        </div>
-      </div>`;
-
-      body.innerHTML = html;
-    }
-
-    function toggleItem(type, id) {
-      const key = type + '_ids';
-      const idx = selectedItems[key].indexOf(id);
-      if (idx > -1) {
-        selectedItems[key].splice(idx, 1);
-      } else {
-        selectedItems[key].push(id);
-      }
-      // Update checkbox
-      const cb = document.getElementById(`${type}-${id}`);
-      if (cb) cb.checked = selectedItems[key].includes(id);
-    }
-
-    function toggleSelectAll(type) {
-      const key = type + '_ids';
-      const items = type === 'odc' ? availableItems.odcs : (type === 'odp' ? availableItems.odps : availableItems.users);
-      const allSelected = items.length > 0 && items.every(i => selectedItems[key].includes(i.id));
-
-      if (allSelected) {
-        selectedItems[key] = [];
-      } else {
-        selectedItems[key] = items.map(i => i.id);
-      }
-      renderImportModal();
-    }
-
-    function closeImportModal() {
-      document.getElementById('import-modal').classList.remove('show');
-    }
-
-    async function confirmImport() {
-      const total = selectedItems.odc_ids.length + selectedItems.odp_ids.length + selectedItems.user_ids.length;
-      if (total === 0) {
-        alert('Pilih minimal 1 item untuk di-import');
-        return;
-      }
-
-      try {
-        const response = await fetch('{{ route("google-map.marker.import-selected") }}', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-          body: JSON.stringify(selectedItems)
-        });
-        const result = await response.json();
-        if (result.status) {
-          alert(`Berhasil import: ODC=${result.data.odc}, ODP=${result.data.odp}, Pelanggan=${result.data.user}`);
-          closeImportModal();
-          await loadMapData();
-          // Auto-center to server after import
-          setTimeout(() => centerOnServer(), 500);
-        } else {
-          alert('Gagal: ' + result.message);
-        }
-      } catch (error) {
-        alert('Error: ' + error.message);
-      }
-    }
-
-    function startAddMarker() {
-      const type = document.getElementById('marker-type').value;
-      const name = document.getElementById('marker-name').value;
-      if (!type || !name) { alert('Pilih tipe dan isi nama!'); return; }
-
-      isAddingMarker = true;
-      document.getElementById('btn-add-marker').textContent = 'Klik pada peta...';
-      document.getElementById('btn-add-marker').disabled = true;
-    }
-
-    async function createMarkerAtPosition(latLng) {
-      const type = document.getElementById('marker-type').value;
-      const name = document.getElementById('marker-name').value;
-
-      try {
-        const response = await fetch('{{ route("google-map.marker.create") }}', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-          body: JSON.stringify({
-            tipe: type,
-            nama: name,
-            latitude: latLng.lat(),
-            longitude: latLng.lng()
-          })
-        });
-        const result = await response.json();
-        if (result.status) {
-          loadMapData();
-          document.getElementById('marker-type').value = '';
-          document.getElementById('marker-name').value = '';
-        } else {
-          alert('Gagal: ' + result.message);
-        }
-      } catch (error) {
-        alert('Error: ' + error.message);
-      }
-
-      isAddingMarker = false;
-      document.getElementById('btn-add-marker').textContent = 'Klik Peta untuk Posisi';
-      document.getElementById('btn-add-marker').disabled = true;
-    }
-
-    async function deleteMarker(id) {
-      if (!confirm('Hapus marker ini?')) return;
-      try {
-        await fetch(`/google-map/marker/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrfToken } });
-        loadMapData();
-      } catch (error) {
-        alert('Error: ' + error.message);
-      }
-    }
-
-    async function clearAllMarkers() {
-      if (!confirm('Hapus SEMUA marker?')) return;
-      try {
-        await fetch('{{ route("google-map.marker.clear") }}', { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrfToken } });
-        loadMapData();
-      } catch (error) {
-        alert('Error: ' + error.message);
-      }
-    }
-
-    // === POLYLINE ACTIONS ===
-
-    function startDrawing() {
-      isDrawing = true;
-      drawingState = { type: 'custom', path: [], polyline: null, tempMarkers: [] };
-
-      document.getElementById('draw-setup').style.display = 'none';
-      document.getElementById('drawing-mode').style.display = 'block';
-      document.getElementById('drawing-banner').style.display = 'block';
-      document.getElementById('draw-instruction').textContent = 'Klik marker atau peta untuk titik awal';
-
-      updateWaypointCount();
-    }
-
-    function addDrawingPoint(latLng) {
-      drawingState.path.push({ lat: latLng.lat(), lng: latLng.lng() });
-
-      // Try to detect if this point is near a marker (if not already set)
-      if (drawingState.path.length === 1 && !drawingState.fromMarker) {
-        // Check if first point is near any marker
-        const nearestMarker = findNearestMarker(latLng);
-        if (nearestMarker) {
-          drawingState.fromMarker = nearestMarker;
-        }
-      } else if (drawingState.path.length > 1 && !drawingState.toMarker) {
-        // Check if last point is near any marker
-        const nearestMarker = findNearestMarker(latLng);
-        if (nearestMarker) {
-          drawingState.toMarker = nearestMarker;
-        }
-      }
-
-      // Update polyline preview (no temp markers - cleaner look)
-      if (drawingState.polyline) drawingState.polyline.setMap(null);
-      drawingState.polyline = new google.maps.Polyline({
-        path: drawingState.path,
-        strokeColor: document.getElementById('polyline-color').value,
-        strokeWeight: parseInt(document.getElementById('polyline-weight').value),
-        strokeOpacity: 0.8,
-        map: map
-      });
-
-      // Update instruction
-      if (drawingState.path.length === 1) {
-        document.getElementById('draw-instruction').textContent = 'Klik untuk tambah titik, atau simpan jalur';
-      } else {
-        document.getElementById('draw-instruction').textContent = 'Klik untuk tambah titik belok, atau simpan';
-      }
-
-      updateWaypointCount();
-    }
-
-    function findNearestMarker(latLng) {
-      const threshold = 0.0001; // ~11 meters in degrees
-      let nearest = null;
-      let minDistance = Infinity;
-
-      markers.forEach(marker => {
-        const markerPos = marker.getPosition();
-        
-        // Calculate distance in degrees (simple approximation)
-        const latDiff = Math.abs(latLng.lat() - markerPos.lat());
-        const lngDiff = Math.abs(latLng.lng() - markerPos.lng());
-        const distanceInDegrees = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
-        
-        if (distanceInDegrees < threshold && distanceInDegrees < minDistance) {
-          minDistance = distanceInDegrees;
-          const data = marker.markerData;
-          nearest = { id: data.id, type: data.tipe, ref_id: data.ref_id || null };
+      // Right click to remove
+      cm.on('contextmenu', function(e) {
+        L.DomEvent.preventDefault(e);
+        if (editMarkers.length > 2) {
+          map.removeLayer(cm);
+          editMarkers = editMarkers.filter(m => m !== cm);
+          updateRouteFromMarkers();
         }
       });
-
-      return nearest;
     }
 
-    function undoDrawingPoint() {
-      if (drawingState.path.length > 0) {
-        drawingState.path.pop();
-        if (drawingState.polyline) drawingState.polyline.setPath(drawingState.path);
+    editMarkers.push(cm);
+  });
 
-        // Update instruction
-        if (drawingState.path.length === 0) {
-          document.getElementById('draw-instruction').textContent = 'Klik marker atau peta untuk titik awal';
-        } else if (drawingState.path.length === 1) {
-          document.getElementById('draw-instruction').textContent = 'Klik untuk tambah titik, atau simpan jalur';
-        }
+  // Add mid-point markers (ghost) for adding new waypoints
+  addGhostMarkers();
 
-        updateWaypointCount();
-      }
-    }
+  // Show save/cancel buttons
+  showRouteEditButtons();
 
-    function updateWaypointCount() {
-      document.getElementById('waypoint-count').textContent = drawingState.path.length + ' titik';
-      document.getElementById('btn-save-polyline').disabled = drawingState.path.length < 2;
-    }
+  showToast('Mode edit garis aktif. Drag titik oranye untuk bengkokkan.', 'info');
+}
 
-    function cancelDrawing() {
-      isDrawing = false;
-      clearTempDrawing();
+function addGhostMarkers() {
+  // Remove old ghosts
+  if (window._ghostMarkers) window._ghostMarkers.forEach(g => map.removeLayer(g));
+  window._ghostMarkers = [];
 
-      document.getElementById('draw-setup').style.display = 'block';
-      document.getElementById('drawing-mode').style.display = 'none';
-      document.getElementById('drawing-banner').style.display = 'none';
+  for (let i = 0; i < editMarkers.length - 1; i++) {
+    const a = editMarkers[i].getLatLng();
+    const b = editMarkers[i + 1].getLatLng();
+    const mid = L.latLng((a.lat + b.lat) / 2, (a.lng + b.lng) / 2);
 
-      drawingState = { type: 'custom', path: [], polyline: null, tempMarkers: [], fromMarker: null, toMarker: null };
-    }
+    const ghost = L.circleMarker(mid, {
+      radius: 5, fillColor: '#ff9800', color: '#fff', weight: 1, fillOpacity: 0.4
+    }).addTo(map);
 
-    function clearTempDrawing() {
-      if (drawingState.polyline) { drawingState.polyline.setMap(null); drawingState.polyline = null; }
-    }
+    const insertAfter = i;
+    ghost.on('mousedown', function(e) {
+      L.DomEvent.stopPropagation(e);
+      // Convert ghost to real marker
+      map.removeLayer(ghost);
+      const newM = L.circleMarker(mid, {
+        radius: 7, fillColor: '#ff9800', color: '#fff', weight: 2, fillOpacity: 1
+      }).addTo(map);
 
-    async function savePolyline() {
-      if (drawingState.path.length < 2) { alert('Minimal 2 titik!'); return; }
-
-      // Auto-detect connection type based on markers
-      let detectedType = 'custom';
-      let markerFromId = null;
-      let markerToId = null;
-
-      if (drawingState.fromMarker && drawingState.toMarker) {
-        const fromType = drawingState.fromMarker.type;
-        const toType = drawingState.toMarker.type;
-
-        if ((fromType === 'odc' && toType === 'odp') || (fromType === 'odp' && toType === 'odc')) {
-          // Handle both directions: ODC to ODP or ODP to ODC
-          detectedType = 'odc_to_odp';
-          // Always set ODC as from and ODP as to
-          if (fromType === 'odc') {
-            markerFromId = drawingState.fromMarker.id;
-            markerToId = drawingState.toMarker.id;
-          } else {
-            // Reverse: ODP to ODC, swap them
-            markerFromId = drawingState.toMarker.id;
-            markerToId = drawingState.fromMarker.id;
-          }
-        } else if (fromType === 'odp' && toType === 'odp') {
-          detectedType = 'odp_to_odp';
-          markerFromId = drawingState.fromMarker.id;
-          markerToId = drawingState.toMarker.id;
-        } else if (fromType === 'odp' && toType === 'user') {
-          detectedType = 'odp_to_user';
-          markerFromId = drawingState.fromMarker.id;
-          markerToId = drawingState.toMarker.id;
-        } else if (fromType === 'user' && toType === 'odp') {
-          // Reverse: User to ODP, swap them
-          detectedType = 'odp_to_user';
-          markerFromId = drawingState.toMarker.id;
-          markerToId = drawingState.fromMarker.id;
-        }
-      }
-
-      const data = {
-        tipe: detectedType,
-        koordinat: drawingState.path,
-        warna: document.getElementById('polyline-color').value,
-        ketebalan: parseInt(document.getElementById('polyline-weight').value),
-        animasi: true,
-        marker_from_id: markerFromId,
-        marker_to_id: markerToId
-      };
-
-      try {
-        const response = await fetch('{{ route("google-map.polyline.save") }}', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken },
-          body: JSON.stringify(data)
-        });
-        const result = await response.json();
-        if (result.status) {
-          cancelDrawing();
-          loadMapData();
-        } else {
-          alert('Gagal: ' + result.message);
-        }
-      } catch (error) {
-        alert('Error: ' + error.message);
-      }
-    }
-
-    async function deletePolyline(id) {
-      if (!confirm('Hapus jalur ini?')) return;
-      try {
-        await fetch(`/google-map/polyline/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrfToken } });
-        loadMapData();
-      } catch (error) {
-        alert('Error: ' + error.message);
-      }
-    }
-
-    async function clearAllPolylines() {
-      if (!confirm('Hapus SEMUA jalur?')) return;
-      try {
-        await fetch('{{ route("google-map.polyline.clear") }}', { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrfToken } });
-        loadMapData();
-      } catch (error) {
-        alert('Error: ' + error.message);
-      }
-    }
-
-    // === EVENT LISTENERS ===
-
-    document.addEventListener('DOMContentLoaded', () => {
-      // Tabs
-      document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          document.getElementById('tab-markers').style.display = 'none';
-          document.getElementById('tab-polylines').style.display = 'none';
-          document.getElementById('tab-settings').style.display = 'none';
-          document.getElementById('tab-' + tab.dataset.tab).style.display = 'block';
-        });
+      newM._isEndpoint = false;
+      newM.on('mousedown', function(ev) {
+        L.DomEvent.stopPropagation(ev);
+        map.dragging.disable();
+        const onMove = (evv) => { newM.setLatLng(evv.latlng); updateRouteFromMarkers(); };
+        const onUp = () => { map.off('mousemove', onMove); map.off('mouseup', onUp); map.dragging.enable(); };
+        map.on('mousemove', onMove);
+        map.on('mouseup', onUp);
+      });
+      newM.on('contextmenu', function(ev) {
+        L.DomEvent.preventDefault(ev);
+        map.removeLayer(newM);
+        editMarkers = editMarkers.filter(m => m !== newM);
+        updateRouteFromMarkers();
+        addGhostMarkers();
       });
 
-      // Marker actions
-      document.getElementById('btn-import').addEventListener('click', openImportModal);
-      document.getElementById('btn-clear-markers').addEventListener('click', clearAllMarkers);
+      editMarkers.splice(insertAfter + 1, 0, newM);
+      updateRouteFromMarkers();
+      addGhostMarkers();
 
-      // Import modal
-      document.getElementById('close-import-modal').addEventListener('click', closeImportModal);
-      document.getElementById('cancel-import').addEventListener('click', closeImportModal);
-      document.getElementById('confirm-import').addEventListener('click', confirmImport);
-
-      document.getElementById('marker-type').addEventListener('change', () => {
-        const hasType = document.getElementById('marker-type').value;
-        const hasName = document.getElementById('marker-name').value;
-        document.getElementById('btn-add-marker').disabled = !hasType || !hasName;
-      });
-      document.getElementById('marker-name').addEventListener('input', () => {
-        const hasType = document.getElementById('marker-type').value;
-        const hasName = document.getElementById('marker-name').value;
-        document.getElementById('btn-add-marker').disabled = !hasType || !hasName;
-      });
-      document.getElementById('btn-add-marker').addEventListener('click', startAddMarker);
-
-      // Polyline actions
-      document.getElementById('btn-start-draw').addEventListener('click', startDrawing);
-      document.getElementById('btn-undo').addEventListener('click', undoDrawingPoint);
-      document.getElementById('btn-cancel-draw').addEventListener('click', cancelDrawing);
-      document.getElementById('btn-save-polyline').addEventListener('click', savePolyline);
-      document.getElementById('btn-clear-polylines').addEventListener('click', clearAllPolylines);
-
-      // Color preset buttons
-      document.querySelectorAll('.color-preset').forEach(btn => {
-        btn.addEventListener('click', () => {
-          document.getElementById('polyline-color').value = btn.dataset.color;
-          // Visual feedback - highlight selected
-          document.querySelectorAll('.color-preset').forEach(b => b.style.borderColor = '#fff');
-          btn.style.borderColor = '#333';
-        });
-      });
-
-      // Settings toggles
-      document.getElementById('toggle-polylines').addEventListener('click', function() {
-        this.classList.toggle('active');
-        showPolylines = this.classList.contains('active');
-        renderMap();
-      });
-      document.getElementById('toggle-animation').addEventListener('click', function() {
-        this.classList.toggle('active');
-        animatePolylines = this.classList.contains('active');
-        renderMap();
-      });
-      document.getElementById('toggle-draggable').addEventListener('click', function() {
-        this.classList.toggle('active');
-        markersAreDraggable = this.classList.contains('active');
-        markers.forEach(m => m.setDraggable(markersAreDraggable));
-      });
-
-      // Center on server button
-      document.getElementById('btn-center-server').addEventListener('click', centerOnServer);
-
-      // Filter toggles
-      document.querySelectorAll('[data-filter]').forEach(toggle => {
-        toggle.addEventListener('click', function() {
-          this.classList.toggle('active');
-          visibleTypes[this.dataset.filter] = this.classList.contains('active');
-          renderMap();
-        });
-      });
-
-      // Panel show/hide
-      document.getElementById('close-stats').addEventListener('click', () => {
-        document.getElementById('stats-panel').classList.add('hidden');
-        document.getElementById('toggle-stats').classList.add('visible');
-      });
-      document.getElementById('close-control').addEventListener('click', () => {
-        document.getElementById('control-panel').classList.add('hidden');
-        document.getElementById('toggle-control').classList.add('visible');
-      });
-      document.getElementById('toggle-stats').addEventListener('click', () => {
-        document.getElementById('stats-panel').classList.remove('hidden');
-        document.getElementById('toggle-stats').classList.remove('visible');
-      });
-      document.getElementById('toggle-control').addEventListener('click', () => {
-        document.getElementById('control-panel').classList.remove('hidden');
-        document.getElementById('toggle-control').classList.remove('visible');
-      });
+      // Start drag immediately
+      map.dragging.disable();
+      const onMove = (evv) => { newM.setLatLng(evv.latlng); updateRouteFromMarkers(); };
+      const onUp = () => { map.off('mousemove', onMove); map.off('mouseup', onUp); map.dragging.enable(); };
+      map.on('mousemove', onMove);
+      map.on('mouseup', onUp);
     });
 
-    function loadGoogleMaps() {
-      const script = document.createElement('script');
-      script.src = 'https://maps.googleapis.com/maps/api/js?key={{ $apiKey }}&libraries=geometry&callback=initMap';
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
+    window._ghostMarkers.push(ghost);
+  }
+}
 
-    loadGoogleMaps();
-  </script>
-</body>
-</html>
+function updateRouteFromMarkers() {
+  if (!editingRoute) return;
+  const latlngs = editMarkers.map(m => m.getLatLng());
+  editingRoute.line.setLatLngs(latlngs);
+}
+
+function showRouteEditButtons() {
+  let el = document.getElementById('routeEditBtns');
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = 'routeEditBtns';
+  el.style.cssText = 'position:fixed;top:60px;right:12px;z-index:1001;display:flex;gap:8px;';
+  el.innerHTML = `
+    <button onclick="saveRouteEdit()" style="padding:8px 16px;border:none;border-radius:8px;background:#4caf50;color:#fff;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.15);"><i class="mdi mdi-check"></i> Simpan</button>
+    <button onclick="resetRouteEdit()" style="padding:8px 16px;border:none;border-radius:8px;background:#ff9800;color:#fff;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.15);"><i class="mdi mdi-restore"></i> Reset</button>
+    <button onclick="disableRouteEdit(true)" style="padding:8px 16px;border:none;border-radius:8px;background:#ff3e1d;color:#fff;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.15);"><i class="mdi mdi-close"></i> Batal</button>
+  `;
+  document.body.appendChild(el);
+}
+
+function resetRouteEdit() {
+  if (!editingRoute) return;
+  // Hapus semua waypoint markers (kecuali endpoint pertama dan terakhir)
+  const firstLL = editMarkers[0].getLatLng();
+  const lastLL = editMarkers[editMarkers.length - 1].getLatLng();
+
+  editMarkers.forEach(m => map.removeLayer(m));
+  editMarkers = [];
+  if (window._ghostMarkers) { window._ghostMarkers.forEach(g => map.removeLayer(g)); window._ghostMarkers = []; }
+
+  // Buat ulang hanya 2 endpoint
+  [firstLL, lastLL].forEach((ll, idx) => {
+    const cm = L.circleMarker(ll, {
+      radius: 5, fillColor: '#666', color: '#fff', weight: 2, fillOpacity: 1
+    }).addTo(map);
+    cm._idx = idx;
+    cm._isEndpoint = true;
+    editMarkers.push(cm);
+  });
+
+  // Update garis jadi lurus
+  editingRoute.line.setLatLngs([firstLL, lastLL]);
+  addGhostMarkers();
+  showToast('Waypoints direset ke garis lurus', 'info');
+}
+
+function saveRouteEdit() {
+  if (!editingRoute) return;
+  const { toType, toId } = editingRoute;
+  const latlngs = editMarkers.map(m => m.getLatLng());
+
+  // Waypoints = all except first and last
+  const waypoints = latlngs.slice(1, -1).map(ll => ({ lat: ll.lat, lng: ll.lng }));
+
+  apiFetch(`${BASE}/route-waypoints/${toType}/${toId}`, 'PUT', { route_waypoints: waypoints.length ? waypoints : null })
+    .then(() => {
+      showToast('Waypoints berhasil disimpan', 'success');
+      disableRouteEdit(false);
+      loadMapData();
+    })
+    .catch(e => showToast('Gagal simpan waypoints: ' + e.message, 'error'));
+}
+
+function disableRouteEdit(reload) {
+  if (!editingRoute) return;
+  const restoreStyle = getLineStyle(editingRoute.color);
+  editingRoute.line.setStyle(restoreStyle);
+  editMarkers.forEach(m => map.removeLayer(m));
+  editMarkers = [];
+  if (window._ghostMarkers) { window._ghostMarkers.forEach(g => map.removeLayer(g)); window._ghostMarkers = []; }
+  editingRoute = null;
+  const el = document.getElementById('routeEditBtns');
+  if (el) el.remove();
+  if (reload) loadMapData();
+}
+
+// =============== TOGGLE VISIBILITY ===============
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.toggle-pill').forEach(pill => {
+    pill.addEventListener('click', function() {
+      const layer = this.dataset.layer;
+      this.classList.toggle('active');
+      const active = this.classList.contains('active');
+
+      if (layer === 'labels') {
+        labelsVisible = active;
+        allMarkers.forEach(m => {
+          if (m.getTooltip()) {
+            if (active) m.openTooltip();
+            else m.closeTooltip();
+          }
+        });
+      } else if (layer === 'routes') {
+        routeLines.forEach(rl => {
+          if (active) { if (!map.hasLayer(rl)) rl.addTo(map); }
+          else map.removeLayer(rl);
+        });
+        routeGlowLines.forEach(gl => {
+          if (active) { if (!map.hasLayer(gl)) gl.addTo(map); }
+          else map.removeLayer(gl);
+        });
+      } else if (layer === 'distance') {
+        distanceVisible = active;
+        distanceLabels.forEach(dl => {
+          if (active) { if (!map.hasLayer(dl)) dl.addTo(map); }
+          else map.removeLayer(dl);
+        });
+      } else if (layerGroups[layer]) {
+        if (active) { if (!map.hasLayer(layerGroups[layer])) layerGroups[layer].addTo(map); }
+        else map.removeLayer(layerGroups[layer]);
+      }
+    });
+  });
+});
+
+// =============== MAP TYPE TOGGLE ===============
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('toggleMapType').addEventListener('click', function() {
+    const order = ['google', 'googleSatellite', 'openstreetmap', 'satellite'];
+    const idx = order.indexOf(currentLayer);
+    const next = order[(idx + 1) % order.length];
+    map.removeLayer(tileLayers[currentLayer]);
+    tileLayers[next].addTo(map);
+    currentLayer = next;
+    localStorage.setItem('mapLayerType', next);
+    updateLayerButton();
+  });
+});
+
+// =============== DARK MODE TOGGLE ===============
+function updateDarkModeButton() {
+  const btn = document.getElementById('toggleDarkMode');
+  const isDark = document.body.classList.contains('dark-mode');
+  btn.innerHTML = isDark
+    ? '<i class="mdi mdi-white-balance-sunny"></i> Terang'
+    : '<i class="mdi mdi-weather-night"></i> Malam';
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('toggleDarkMode').addEventListener('click', function() {
+    const isDark = document.body.classList.contains('dark-mode');
+    if (isDark) {
+      document.body.classList.remove('dark-mode');
+      localStorage.setItem('mapDarkMode', '0');
+    } else {
+      document.body.classList.add('dark-mode');
+      localStorage.setItem('mapDarkMode', '1');
+    }
+    updateDarkModeButton();
+    showToast(document.body.classList.contains('dark-mode') ? 'Mode Malam' : 'Mode Terang', 'info');
+  });
+});
+
+// =============== LINE MODE TOGGLE ===============
+const lineModes = ['normal', 'dash', 'glow', 'traffic'];
+const lineModeLabels = { normal: 'Normal', dash: 'Dash', glow: 'Glow', traffic: 'Traffic' };
+const lineModeIcons = { normal: 'mdi-chart-timeline-variant', dash: 'mdi-dots-horizontal', glow: 'mdi-blur-linear', traffic: 'mdi-swap-horizontal' };
+
+function updateLineModeButton() {
+  const label = document.getElementById('lineModeLabel');
+  const btn = document.getElementById('btnLineMode');
+  if (label) label.textContent = lineModeLabels[lineMode] || 'Normal';
+  if (btn) {
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = 'mdi ' + (lineModeIcons[lineMode] || 'mdi-chart-timeline-variant');
+  }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  updateLineModeButton();
+  document.getElementById('btnLineMode').addEventListener('click', function() {
+    const idx = lineModes.indexOf(lineMode);
+    lineMode = lineModes[(idx + 1) % lineModes.length];
+    localStorage.setItem('lineMode', lineMode);
+    updateLineModeButton();
+    loadMapData(); // reload lines with new style
+    showToast(`Mode garis: ${lineModeLabels[lineMode]}`, 'info');
+  });
+});
+
+// =============== FAB MENU ===============
+document.addEventListener('DOMContentLoaded', function() {
+  const fabMain = document.getElementById('fabMain');
+  const fabMenu = document.getElementById('fabMenu');
+
+  fabMain.addEventListener('click', function() {
+    this.classList.toggle('active');
+    fabMenu.classList.toggle('show');
+  });
+
+  document.querySelectorAll('.fab-item').forEach(item => {
+    item.addEventListener('click', function() {
+      const type = this.dataset.type;
+      fabMain.classList.remove('active');
+      fabMenu.classList.remove('show');
+      startAddMode(type);
+    });
+  });
+});
+
+// =============== ADD DEVICE MODE ===============
+function startAddMode(type) {
+  addingMarkerMode = type;
+  document.getElementById('map').classList.add('adding-marker');
+
+  // Show indicator
+  let ind = document.getElementById('addModeIndicator');
+  if (!ind) {
+    ind = document.createElement('div');
+    ind.id = 'addModeIndicator';
+    ind.className = 'add-mode-indicator';
+    document.body.appendChild(ind);
+  }
+  ind.innerHTML = `<i class="mdi mdi-map-marker-plus me-2"></i>Klik peta untuk menempatkan ${type.toUpperCase()}`;
+  ind.style.display = 'block';
+
+  showToast(`Mode tambah ${type.toUpperCase()} aktif. Klik pada peta.`, 'info');
+}
+
+function cancelAddMode() {
+  addingMarkerMode = null;
+  placingImport = null;
+  document.getElementById('map').classList.remove('adding-marker');
+  const ind = document.getElementById('addModeIndicator');
+  if (ind) ind.style.display = 'none';
+}
+
+function onMapClick(e) {
+  if (addingMarkerMode) {
+    const type = addingMarkerMode;
+    cancelAddMode();
+    showAddModal(type, e.latlng.lat, e.latlng.lng);
+  } else if (placingImport) {
+    const { type, id } = placingImport;
+    cancelAddMode();
+    apiFetch(`${BASE}/set-coordinates`, 'POST', { type, id, latitude: e.latlng.lat, longitude: e.latlng.lng })
+      .then(() => { showToast('Koordinat berhasil disimpan', 'success'); loadMapData(); })
+      .catch(err => showToast('Gagal: ' + err.message, 'error'));
+  }
+}
+
+// =============== ADD MODALS (SweetAlert2 + Bootstrap) ===============
+function showAddModal(type, lat, lng) {
+  if (type === 'olt') showOLTModal(null, lat, lng);
+  else if (type === 'odc') showODCModal(null, lat, lng);
+  else if (type === 'odp') showODPModal(null, lat, lng);
+  else if (type === 'client') showClientModal(null, lat, lng);
+}
+
+function showOLTModal(editData, lat, lng) {
+  const isEdit = !!editData;
+  Swal.fire({
+    title: `<i class="mdi mdi-access-point-network me-2" style="color:#e91e63"></i>${isEdit ? 'Edit' : 'Tambah'} OLT`,
+    html: `
+      <div class="text-start">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Nama <span class="text-danger">*</span></label><input type="text" id="s-nama" class="form-control" value="${isEdit ? editData.nama : ''}"></div>
+          <div class="col-md-6"><label class="form-label">Kode <span class="text-danger">*</span></label><input type="text" id="s-kode" class="form-control" value="${isEdit ? editData.kode : ''}" placeholder="OLT-01"></div>
+          <div class="col-md-6"><label class="form-label">IP Address</label><input type="text" id="s-ip" class="form-control" value="${isEdit ? (editData.ip || '') : ''}" placeholder="192.168.x.x"></div>
+          <div class="col-md-6"><label class="form-label">Teknologi</label>
+            <select id="s-teknologi" class="form-select">
+              <option value="EPON" ${isEdit && editData.teknologi==='EPON' ? 'selected' : ''}>EPON</option>
+              <option value="GPON" ${isEdit && editData.teknologi==='GPON' ? 'selected' : ''}>GPON</option>
+              <option value="XG-PON" ${isEdit && editData.teknologi==='XG-PON' ? 'selected' : ''}>XG-PON</option>
+            </select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Port PON</label><input type="number" id="s-port_pon" class="form-control" min="0" value="${isEdit ? (editData.port_pon || '') : ''}"></div>
+          <div class="col-md-6"><label class="form-label">Port Uplink</label><input type="number" id="s-port_uplink" class="form-control" min="0" value="${isEdit ? (editData.port_uplink || '') : ''}"></div>
+          <div class="col-md-6"><label class="form-label">Latitude</label><input type="text" id="s-lat" class="form-control" value="${lat || (isEdit ? editData.lat : '')}" readonly></div>
+          <div class="col-md-6"><label class="form-label">Longitude</label><input type="text" id="s-lng" class="form-control" value="${lng || (isEdit ? editData.lng : '')}" readonly></div>
+          <div class="col-12"><label class="form-label">Keterangan</label><textarea id="s-keterangan" class="form-control" rows="2">${isEdit ? (editData.keterangan || '') : ''}</textarea></div>
+        </div>
+      </div>
+    `,
+    width: 550,
+    showCancelButton: true,
+    confirmButtonText: `<i class="mdi mdi-content-save me-1"></i>${isEdit ? 'Update' : 'Simpan'}`,
+    cancelButtonText: '<i class="mdi mdi-close me-1"></i>Batal',
+    customClass: { confirmButton: 'btn btn-primary me-2', cancelButton: 'btn btn-label-secondary' },
+    buttonsStyling: false,
+    preConfirm: () => {
+      const nama = document.getElementById('s-nama').value.trim();
+      const kode = document.getElementById('s-kode').value.trim();
+      if (!nama || !kode) { Swal.showValidationMessage('Nama dan Kode wajib diisi'); return false; }
+      return {
+        nama, kode,
+        ip: document.getElementById('s-ip').value.trim() || null,
+        teknologi: document.getElementById('s-teknologi').value,
+        port_pon: parseInt(document.getElementById('s-port_pon').value) || null,
+        port_uplink: parseInt(document.getElementById('s-port_uplink').value) || null,
+        latitude: parseFloat(document.getElementById('s-lat').value),
+        longitude: parseFloat(document.getElementById('s-lng').value),
+        keterangan: document.getElementById('s-keterangan').value.trim() || null,
+      };
+    }
+  }).then(result => {
+    if (!result.isConfirmed) return;
+    const url = isEdit ? `${BASE}/olt/${editData.id}` : `${BASE}/olt`;
+    const method = isEdit ? 'PUT' : 'POST';
+    apiFetch(url, method, result.value)
+      .then(() => { showToast(`OLT berhasil ${isEdit ? 'diupdate' : 'ditambahkan'}`, 'success'); loadMapData(); loadSelectOptions(); })
+      .catch(e => showToast('Gagal: ' + e.message, 'error'));
+  });
+}
+
+function showODCModal(editData, lat, lng) {
+  const isEdit = !!editData;
+  const oltOpts = selectOptions.olts.map(o => `<option value="${o.id}" ${isEdit && editData.idOlt==o.id ? 'selected' : ''}>${o.nama} (${o.kode})</option>`).join('');
+  Swal.fire({
+    title: `<i class="mdi mdi-router-network me-2" style="color:#ff9800"></i>${isEdit ? 'Edit' : 'Tambah'} ODC`,
+    html: `
+      <div class="text-start">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Nama <span class="text-danger">*</span></label><input type="text" id="s-nama" class="form-control" value="${isEdit ? editData.nama : ''}"></div>
+          <div class="col-md-6"><label class="form-label">Kode <span class="text-danger">*</span></label><input type="text" id="s-kode" class="form-control" value="${isEdit ? editData.kode : ''}" placeholder="ODC-01"></div>
+          <div class="col-md-6"><label class="form-label">Total Port</label><input type="number" id="s-port" class="form-control" min="0" value="${isEdit ? (editData.port || '') : ''}"></div>
+          <div class="col-md-6"><label class="form-label">Port OLT</label><input type="number" id="s-portOlt" class="form-control" min="0" value="${isEdit ? (editData.portOlt || '') : ''}"></div>
+          <div class="col-12"><label class="form-label">Parent OLT</label>
+            <select id="s-idOlt" class="form-select"><option value="">-- Pilih OLT --</option>${oltOpts}</select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Latitude</label><input type="text" id="s-lat" class="form-control" value="${lat || (isEdit ? editData.lat : '')}" readonly></div>
+          <div class="col-md-6"><label class="form-label">Longitude</label><input type="text" id="s-lng" class="form-control" value="${lng || (isEdit ? editData.lng : '')}" readonly></div>
+          <div class="col-12"><label class="form-label">Keterangan</label><textarea id="s-keterangan" class="form-control" rows="2">${isEdit ? (editData.keterangan || '') : ''}</textarea></div>
+        </div>
+      </div>
+    `,
+    width: 550,
+    showCancelButton: true,
+    confirmButtonText: `<i class="mdi mdi-content-save me-1"></i>${isEdit ? 'Update' : 'Simpan'}`,
+    cancelButtonText: '<i class="mdi mdi-close me-1"></i>Batal',
+    customClass: { confirmButton: 'btn btn-primary me-2', cancelButton: 'btn btn-label-secondary' },
+    buttonsStyling: false,
+    preConfirm: () => {
+      const nama = document.getElementById('s-nama').value.trim();
+      const kode = document.getElementById('s-kode').value.trim();
+      if (!nama || !kode) { Swal.showValidationMessage('Nama dan Kode wajib diisi'); return false; }
+      return {
+        nama, kode,
+        port: parseInt(document.getElementById('s-port').value) || 0,
+        portOlt: parseInt(document.getElementById('s-portOlt').value) || null,
+        idOlt: document.getElementById('s-idOlt').value || null,
+        latitude: parseFloat(document.getElementById('s-lat').value),
+        longitude: parseFloat(document.getElementById('s-lng').value),
+        keterangan: document.getElementById('s-keterangan').value.trim() || null,
+      };
+    }
+  }).then(result => {
+    if (!result.isConfirmed) return;
+    const url = isEdit ? `${BASE}/odc/${editData.id}` : `${BASE}/odc`;
+    const method = isEdit ? 'PUT' : 'POST';
+    apiFetch(url, method, result.value)
+      .then(() => { showToast(`ODC berhasil ${isEdit ? 'diupdate' : 'ditambahkan'}`, 'success'); loadMapData(); loadSelectOptions(); })
+      .catch(e => showToast('Gagal: ' + e.message, 'error'));
+  });
+}
+
+function showODPModal(editData, lat, lng) {
+  const isEdit = !!editData;
+  const odcOpts = selectOptions.odcs.map(o => `<option value="${o.id}" ${isEdit && editData.idOdc==o.id ? 'selected' : ''}>${o.nama} (${o.kode}) - sisa: ${o.portSisa || 0}</option>`).join('');
+  const odpOpts = selectOptions.odps.filter(o => !isEdit || o.id != editData.id).map(o => `<option value="${o.id}" ${isEdit && editData.idOdp==o.id ? 'selected' : ''}>${o.nama} (${o.kode}) - sisa: ${o.portSisa || 0}</option>`).join('');
+  Swal.fire({
+    title: `<i class="mdi mdi-cube-outline me-2" style="color:#4caf50"></i>${isEdit ? 'Edit' : 'Tambah'} ODP`,
+    html: `
+      <div class="text-start">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Nama <span class="text-danger">*</span></label><input type="text" id="s-nama" class="form-control" value="${isEdit ? editData.nama : ''}"></div>
+          <div class="col-md-6"><label class="form-label">Kode <span class="text-danger">*</span></label><input type="text" id="s-kode" class="form-control" value="${isEdit ? editData.kode : ''}" placeholder="ODP-01"></div>
+          <div class="col-md-6"><label class="form-label">Tipe</label>
+            <select id="s-tipe" class="form-select">
+              <option value="Splitter" ${!isEdit || editData.tipe==='Splitter' ? 'selected' : ''}>Splitter</option>
+              <option value="HTB" ${isEdit && editData.tipe==='HTB' ? 'selected' : ''}>HTB</option>
+            </select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Total Port</label><input type="number" id="s-port" class="form-control" min="0" value="${isEdit ? (editData.port || '') : ''}"></div>
+          <div class="col-md-6"><label class="form-label">Port ODC</label><input type="number" id="s-portOdc" class="form-control" min="0" value="${isEdit ? (editData.portOdc || '') : ''}"></div>
+          <div class="col-md-6"><label class="form-label">Kabel</label><input type="text" id="s-kabel" class="form-control" value="${isEdit ? (editData.kabel || '') : ''}" placeholder="36m"></div>
+          <div class="col-md-6"><label class="form-label">FO A</label><input type="number" id="s-fo_a" class="form-control" min="0" value="${isEdit ? (editData.fo_a || '') : ''}"></div>
+          <div class="col-md-6"><label class="form-label">FO B</label><input type="number" id="s-fo_b" class="form-control" min="0" value="${isEdit ? (editData.fo_b || '') : ''}"></div>
+          <div class="col-12"><small class="text-warning"><i class="mdi mdi-alert-outline me-1"></i>Pilih salah satu: Parent ODC atau Parent ODP (Estafet), tidak boleh keduanya.</small></div>
+          <div class="col-md-6"><label class="form-label">Parent ODC</label>
+            <select id="s-idOdc" class="form-select"><option value="">-- Pilih ODC --</option>${odcOpts}</select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Parent ODP (Estafet)</label>
+            <select id="s-idOdp" class="form-select"><option value="">-- Pilih ODP --</option>${odpOpts}</select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Latitude</label><input type="text" id="s-lat" class="form-control" value="${lat || (isEdit ? editData.lat : '')}" readonly></div>
+          <div class="col-md-6"><label class="form-label">Longitude</label><input type="text" id="s-lng" class="form-control" value="${lng || (isEdit ? editData.lng : '')}" readonly></div>
+          <div class="col-12"><label class="form-label">Keterangan</label><textarea id="s-keterangan" class="form-control" rows="2">${isEdit ? (editData.keterangan || '') : ''}</textarea></div>
+        </div>
+      </div>
+    `,
+    width: 600,
+    showCancelButton: true,
+    confirmButtonText: `<i class="mdi mdi-content-save me-1"></i>${isEdit ? 'Update' : 'Simpan'}`,
+    cancelButtonText: '<i class="mdi mdi-close me-1"></i>Batal',
+    customClass: { confirmButton: 'btn btn-primary me-2', cancelButton: 'btn btn-label-secondary' },
+    buttonsStyling: false,
+    didOpen: () => {
+      const selOdc = document.getElementById('s-idOdc');
+      const selOdp = document.getElementById('s-idOdp');
+      selOdc.addEventListener('change', () => { if (selOdc.value) { selOdp.value = ''; selOdp.disabled = true; } else { selOdp.disabled = false; } });
+      selOdp.addEventListener('change', () => { if (selOdp.value) { selOdc.value = ''; selOdc.disabled = true; } else { selOdc.disabled = false; } });
+      // Set initial disabled state for edit
+      if (isEdit && editData.idOdc) selOdp.disabled = true;
+      if (isEdit && editData.idOdp) selOdc.disabled = true;
+    },
+    preConfirm: () => {
+      const nama = document.getElementById('s-nama').value.trim();
+      const kode = document.getElementById('s-kode').value.trim();
+      if (!nama || !kode) { Swal.showValidationMessage('Nama dan Kode wajib diisi'); return false; }
+      const idOdc = document.getElementById('s-idOdc').value || null;
+      const idOdp = document.getElementById('s-idOdp').value || null;
+      if (idOdc && idOdp) { Swal.showValidationMessage('Pilih salah satu: Parent ODC atau Parent ODP, tidak boleh keduanya'); return false; }
+      return {
+        nama, kode,
+        tipe: document.getElementById('s-tipe').value,
+        port: parseInt(document.getElementById('s-port').value) || 0,
+        portOdc: parseInt(document.getElementById('s-portOdc').value) || null,
+        kabel: document.getElementById('s-kabel').value.trim() || null,
+        fo_a: parseInt(document.getElementById('s-fo_a').value) || 0,
+        fo_b: parseInt(document.getElementById('s-fo_b').value) || 0,
+        idOdc, idOdp,
+        latitude: parseFloat(document.getElementById('s-lat').value),
+        longitude: parseFloat(document.getElementById('s-lng').value),
+        keterangan: document.getElementById('s-keterangan').value.trim() || null,
+      };
+    }
+  }).then(result => {
+    if (!result.isConfirmed) return;
+    const url = isEdit ? `${BASE}/odp/${editData.id}` : `${BASE}/odp`;
+    const method = isEdit ? 'PUT' : 'POST';
+    apiFetch(url, method, result.value)
+      .then(() => { showToast(`ODP berhasil ${isEdit ? 'diupdate' : 'ditambahkan'}`, 'success'); loadMapData(); loadSelectOptions(); })
+      .catch(e => showToast('Gagal: ' + e.message, 'error'));
+  });
+}
+
+function showClientModal(editData, lat, lng) {
+  const isEdit = !!editData;
+  const odpOpts = selectOptions.odps.map(o => `<option value="${o.id}" ${isEdit && editData.idOdp==o.id ? 'selected' : ''}>${o.nama} (${o.kode}) - sisa: ${o.portSisa || 0}</option>`).join('');
+  const mkOpts = selectOptions.mikrotiks.map(o => `<option value="${o.id}" ${isEdit && editData.idMikrotik==o.id ? 'selected' : ''}>${o.nama} (${o.ip})</option>`).join('');
+  const katOpts = selectOptions.kategoris.map(o => `<option value="${o.id}" ${isEdit && editData.idKategori==o.id ? 'selected' : ''}>${o.nama}</option>`).join('');
+  const paketAll = selectOptions.pakets || [];
+
+  Swal.fire({
+    title: `<i class="mdi mdi-account-outline me-2" style="color:#2196f3"></i>${isEdit ? 'Edit' : 'Tambah'} Client`,
+    html: `
+      <div class="text-start">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Nama Client <span class="text-danger">*</span></label><input type="text" id="s-nama" class="form-control" value="${isEdit ? editData.nama : ''}"></div>
+          <div class="col-md-6"><label class="form-label">No. WA</label><input type="text" id="s-wa" class="form-control" value="${isEdit ? (editData.wa || '') : ''}" placeholder="08xxxxxxxxxx"></div>
+
+          <div class="col-md-6"><label class="form-label">Mikrotik Server</label>
+            <select id="s-idMikrotik" class="form-select"><option value="">-- Pilih Mikrotik --</option>${mkOpts}</select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Secret PPPoE</label>
+            <div class="position-relative" id="s-secret-wrapper">
+              <input type="text" id="s-secret-search" class="form-control" placeholder="Pilih Mikrotik dulu" disabled autocomplete="off">
+              <input type="hidden" id="s-secret-value">
+              <div id="s-secret-dropdown" class="secret-dropdown" style="display:none;"></div>
+            </div>
+            <div id="s-secret-loading" class="text-muted small mt-1" style="display:none;"><i class="mdi mdi-loading mdi-spin"></i> Memuat secrets...</div>
+          </div>
+
+          <div class="col-md-6"><label class="form-label">Kategori</label>
+            <select id="s-idKategori" class="form-select"><option value="">-- Pilih Kategori --</option>${katOpts}</select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Paket</label>
+            <select id="s-idPaket" class="form-select"><option value="">-- Pilih Kategori dulu --</option></select>
+          </div>
+
+          <div class="col-md-6"><label class="form-label">Parent ODP</label>
+            <select id="s-idOdp" class="form-select"><option value="">-- Pilih ODP --</option>${odpOpts}</select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Port ODP</label><input type="number" id="s-portOdp" class="form-control" value="${isEdit ? (editData.portOdp || '') : ''}" min="0" placeholder="Nomor port"></div>
+
+          <div class="col-md-6"><label class="form-label">IP Address</label><input type="text" id="s-ip" class="form-control" value="${isEdit ? (editData.ip || '') : ''}" placeholder="Otomatis dari secret / isi manual"></div>
+          <div class="col-md-6"><label class="form-label">Status</label>
+            <select id="s-status" class="form-select">
+              <option value="online" ${isEdit && editData.status === 'online' ? 'selected' : (!isEdit ? 'selected' : '')}>Online</option>
+              <option value="offline" ${isEdit && editData.status === 'offline' ? 'selected' : ''}>Offline</option>
+              <option value="isolir" ${isEdit && editData.status === 'isolir' ? 'selected' : ''}>Isolir</option>
+            </select>
+          </div>
+
+          <div class="col-12"><hr class="my-1"><small class="text-muted fw-bold"><i class="mdi mdi-api me-1"></i>Detail API Mikrotik (otomatis dari secret)</small></div>
+          <div class="col-md-3"><label class="form-label">Id Api</label><input type="text" id="s-secretId" class="form-control form-control-sm bg-light" value="${isEdit ? (editData.idMikrotikUser || '') : ''}" readonly></div>
+          <div class="col-md-3"><label class="form-label">Service</label><input type="text" id="s-secretService" class="form-control form-control-sm bg-light" value="${isEdit ? (editData.serviceMikrotikUser || '') : ''}" readonly></div>
+          <div class="col-md-3"><label class="form-label">Profile</label><input type="text" id="s-secretProfile" class="form-control form-control-sm bg-light" value="${isEdit ? (editData.profileMikrotikUser || '') : ''}" readonly></div>
+          <div class="col-md-3"><label class="form-label">Password</label><input type="text" id="s-secretPassword" class="form-control form-control-sm bg-light" value="${isEdit ? (editData.password || '') : ''}" readonly></div>
+          <input type="hidden" id="s-secretName" value="${isEdit ? (editData.namaMikrotikUser || '') : ''}">
+
+          <div class="col-12"><hr class="my-1"><small class="text-muted fw-bold"><i class="mdi mdi-calendar me-1"></i>Info Langganan</small></div>
+          <div class="col-md-6"><label class="form-label">Tgl Daftar</label><input type="date" id="s-tglDaftar" class="form-control form-control-sm" value="${isEdit ? (editData.tglDaftar || '') : new Date().toISOString().slice(0,10)}"></div>
+          <div class="col-md-6"><label class="form-label">Jatuh Tempo</label><input type="date" id="s-tglJatuhTempo" class="form-control form-control-sm" value="${isEdit ? (editData.tglJatuhTempo || '') : (() => { const d = new Date(); d.setMonth(d.getMonth()+1); return d.toISOString().slice(0,10); })()}"></div>
+
+          <div class="col-md-6"><label class="form-label">Latitude</label><input type="text" id="s-lat" class="form-control" value="${lat || (isEdit ? editData.lat : '')}" readonly></div>
+          <div class="col-md-6"><label class="form-label">Longitude</label><input type="text" id="s-lng" class="form-control" value="${lng || (isEdit ? editData.lng : '')}" readonly></div>
+          <div class="col-12"><label class="form-label">Keterangan</label><textarea id="s-keterangan" class="form-control" rows="2">${isEdit ? (editData.keterangan || '') : ''}</textarea></div>
+        </div>
+      </div>
+    `,
+    width: 650,
+    showCancelButton: true,
+    confirmButtonText: `<i class="mdi mdi-content-save me-1"></i>${isEdit ? 'Update' : 'Simpan'}`,
+    cancelButtonText: '<i class="mdi mdi-close me-1"></i>Batal',
+    customClass: { confirmButton: 'btn btn-primary me-2', cancelButton: 'btn btn-label-secondary' },
+    buttonsStyling: false,
+    didOpen: () => {
+      const selMk = document.getElementById('s-idMikrotik');
+      const searchInput = document.getElementById('s-secret-search');
+      const secretDropdown = document.getElementById('s-secret-dropdown');
+      const selKat = document.getElementById('s-idKategori');
+      const selPaket = document.getElementById('s-idPaket');
+      let allSecrets = []; // store loaded secrets
+
+      function clearSecretFields() {
+        document.getElementById('s-ip').value = '';
+        document.getElementById('s-secretId').value = '';
+        document.getElementById('s-secretName').value = '';
+        document.getElementById('s-secretService').value = '';
+        document.getElementById('s-secretProfile').value = '';
+        document.getElementById('s-secretPassword').value = '';
+        document.getElementById('s-secret-value').value = '';
+      }
+
+      function getSecretIp(s) {
+        return s['remote-address'] || s['local-address'] || '';
+      }
+
+      function selectSecret(s) {
+        searchInput.value = `${s.name} (${s.profile || '-'})`;
+        document.getElementById('s-ip').value = getSecretIp(s);
+        document.getElementById('s-secretId').value = s['.id'] || '';
+        document.getElementById('s-secretName').value = s.name || '';
+        document.getElementById('s-secretService').value = s.service || '';
+        document.getElementById('s-secretProfile').value = s.profile || '';
+        document.getElementById('s-secretPassword').value = s.password || '';
+        document.getElementById('s-secret-value').value = s['.id'] || '';
+        secretDropdown.style.display = 'none';
+      }
+
+      function renderSecretDropdown(filter) {
+        const q = (filter || '').toLowerCase();
+        const filtered = q ? allSecrets.filter(s => (s.name || '').toLowerCase().includes(q) || (s.profile || '').toLowerCase().includes(q) || getSecretIp(s).toLowerCase().includes(q)) : allSecrets;
+        if (!filtered.length) {
+          secretDropdown.innerHTML = '<div class="secret-empty">Tidak ditemukan</div>';
+        } else {
+          secretDropdown.innerHTML = filtered.slice(0, 50).map((s, i) =>
+            `<div class="secret-item" data-idx="${allSecrets.indexOf(s)}">
+              <span class="secret-name">${s.name || '-'}</span>
+              <span class="secret-info"> | ${s.profile || '-'} | IP: ${getSecretIp(s) || '-'}</span>
+            </div>`
+          ).join('') + (filtered.length > 50 ? `<div class="secret-empty">...dan ${filtered.length - 50} lainnya, ketik untuk filter</div>` : '');
+        }
+        secretDropdown.style.display = 'block';
+
+        // Attach click handlers
+        secretDropdown.querySelectorAll('.secret-item').forEach(el => {
+          el.addEventListener('click', () => {
+            const idx = parseInt(el.dataset.idx);
+            selectSecret(allSecrets[idx]);
+          });
+        });
+      }
+
+      // --- Mikrotik -> Load Secrets ---
+      selMk.addEventListener('change', () => {
+        const mkId = selMk.value;
+        allSecrets = [];
+        searchInput.value = '';
+        searchInput.placeholder = mkId ? 'Memuat...' : 'Pilih Mikrotik dulu';
+        searchInput.disabled = !mkId;
+        secretDropdown.style.display = 'none';
+        clearSecretFields();
+        if (!mkId) return;
+        document.getElementById('s-secret-loading').style.display = 'block';
+        fetch(`/select/secret-api/${mkId}`, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } })
+          .then(r => r.json())
+          .then(res => {
+            document.getElementById('s-secret-loading').style.display = 'none';
+            if (res.status && res.data && res.data.length) {
+              allSecrets = res.data;
+              searchInput.placeholder = `Ketik untuk cari (${allSecrets.length} secret)`;
+              searchInput.disabled = false;
+            } else {
+              searchInput.placeholder = 'Tidak ada secret';
+            }
+          })
+          .catch(() => {
+            document.getElementById('s-secret-loading').style.display = 'none';
+            searchInput.placeholder = 'Gagal memuat secret';
+          });
+      });
+
+      // --- Search input events ---
+      searchInput.addEventListener('focus', () => {
+        if (allSecrets.length) renderSecretDropdown(searchInput.value);
+      });
+      searchInput.addEventListener('input', () => {
+        clearSecretFields();
+        if (allSecrets.length) renderSecretDropdown(searchInput.value);
+      });
+      // Close dropdown on click outside
+      document.addEventListener('click', (e) => {
+        if (!document.getElementById('s-secret-wrapper').contains(e.target)) {
+          secretDropdown.style.display = 'none';
+        }
+      });
+
+      // --- Kategori -> Filter Paket ---
+      function updatePaketOptions() {
+        const katId = selKat.value;
+        let opts = '<option value="">-- Pilih Paket --</option>';
+        if (katId) {
+          paketAll.filter(p => p.idKategori == katId).forEach(p => {
+            opts += `<option value="${p.id}" ${isEdit && editData.idPaket == p.id ? 'selected' : ''}>${p.nama} (${p.kode}) - Rp ${Number(p.price || 0).toLocaleString('id-ID')}</option>`;
+          });
+        }
+        selPaket.innerHTML = opts;
+      }
+      selKat.addEventListener('change', updatePaketOptions);
+
+      // --- Pre-fill on edit ---
+      if (isEdit) {
+        if (editData.idKategori) updatePaketOptions();
+        if (editData.idMikrotik) {
+          // Show current secret name while loading
+          if (editData.namaMikrotikUser) {
+            searchInput.value = `${editData.namaMikrotikUser} (${editData.profileMikrotikUser || '-'})`;
+          }
+          selMk.dispatchEvent(new Event('change'));
+          // After secrets load, auto-select the matching one
+          const checkSecret = setInterval(() => {
+            if (allSecrets.length > 0) {
+              clearInterval(checkSecret);
+              const match = allSecrets.find(s => s.name === editData.namaMikrotikUser);
+              if (match) selectSecret(match);
+            }
+          }, 300);
+          setTimeout(() => clearInterval(checkSecret), 10000);
+        }
+      }
+    },
+    preConfirm: () => {
+      const nama = document.getElementById('s-nama').value.trim();
+      if (!nama) { Swal.showValidationMessage('Nama wajib diisi'); return false; }
+      return {
+        nama,
+        wa: document.getElementById('s-wa').value.trim() || null,
+        idMikrotik: document.getElementById('s-idMikrotik').value || null,
+        secretId: document.getElementById('s-secretId').value || null,
+        secretName: document.getElementById('s-secretName').value || null,
+        secretService: document.getElementById('s-secretService').value || null,
+        secretProfile: document.getElementById('s-secretProfile').value || null,
+        secretPassword: document.getElementById('s-secretPassword').value || null,
+        ip: document.getElementById('s-ip').value.trim() || null,
+        idKategori: document.getElementById('s-idKategori').value || null,
+        idPaket: document.getElementById('s-idPaket').value || null,
+        idOdp: document.getElementById('s-idOdp').value || null,
+        portOdp: parseInt(document.getElementById('s-portOdp').value) || null,
+        latitude: parseFloat(document.getElementById('s-lat').value),
+        longitude: parseFloat(document.getElementById('s-lng').value),
+        keterangan: document.getElementById('s-keterangan').value.trim() || null,
+        status: document.getElementById('s-status').value || 'online',
+        tglDaftar: document.getElementById('s-tglDaftar').value || null,
+        tglJatuhTempo: document.getElementById('s-tglJatuhTempo').value || null,
+      };
+    }
+  }).then(result => {
+    if (!result.isConfirmed) return;
+    const url = isEdit ? `${BASE}/client/${editData.id}` : `${BASE}/client`;
+    const method = isEdit ? 'PUT' : 'POST';
+    apiFetch(url, method, result.value)
+      .then(() => { showToast(`Client berhasil ${isEdit ? 'diupdate' : 'ditambahkan'}`, 'success'); loadMapData(); loadSelectOptions(); })
+      .catch(e => showToast('Gagal: ' + e.message, 'error'));
+  });
+}
+
+// =============== EDIT DEVICE ===============
+function editDevice(type, id) {
+  map.closePopup();
+  apiFetch(`${BASE}/${type}/${id}`, 'GET')
+    .then(res => {
+      const d = res.data;
+      if (type === 'olt') showOLTModal(d, null, null);
+      else if (type === 'odc') showODCModal(d, null, null);
+      else if (type === 'odp') showODPModal(d, null, null);
+      else if (type === 'client') showClientModal(d, null, null);
+    })
+    .catch(e => showToast('Gagal memuat data: ' + e.message, 'error'));
+}
+
+// =============== DELETE DEVICE ===============
+function deleteDevice(type, id) {
+  map.closePopup();
+  Swal.fire({
+    title: `Hapus ${type.toUpperCase()}?`,
+    text: 'Data yang dihapus tidak bisa dikembalikan!',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: '<i class="mdi mdi-delete me-1"></i>Ya, Hapus!',
+    cancelButtonText: '<i class="mdi mdi-close me-1"></i>Batal',
+    customClass: { confirmButton: 'btn btn-danger me-2', cancelButton: 'btn btn-label-secondary' },
+    buttonsStyling: false
+  }).then(result => {
+    if (!result.isConfirmed) return;
+    apiFetch(`${BASE}/${type}/${id}`, 'DELETE')
+      .then(() => { showToast(`${type.toUpperCase()} berhasil dihapus`, 'success'); loadMapData(); loadSelectOptions(); })
+      .catch(e => showToast('Gagal hapus: ' + e.message, 'error'));
+  });
+}
+
+// =============== IMPORT MODAL ===============
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('btnImport').addEventListener('click', showImportModal);
+});
+
+function showImportModal() {
+  apiFetch(`${BASE}/unmapped-items`, 'GET').then(res => {
+    const d = res.data;
+    const oltList = (d.olts || []).map(o => `
+      <div class="import-item">
+        <div><div class="import-item-name">${o.nama}</div><div class="import-item-detail">Kode: ${o.kode} | IP: ${o.ip || '-'}</div></div>
+        <button class="btn btn-sm btn-primary" onclick="startPlaceImport('olt',${o.id},'${o.nama}')"><i class="mdi mdi-map-marker-plus"></i> Place</button>
+      </div>
+    `).join('') || '<p class="text-muted text-center py-3">Semua OLT sudah dipetakan</p>';
+
+    const odcList = (d.odcs || []).map(o => `
+      <div class="import-item">
+        <div><div class="import-item-name">${o.nama}</div><div class="import-item-detail">Kode: ${o.kode} | Port: ${o.port || 0}</div></div>
+        <button class="btn btn-sm btn-primary" onclick="startPlaceImport('odc',${o.id},'${o.nama}')"><i class="mdi mdi-map-marker-plus"></i> Place</button>
+      </div>
+    `).join('') || '<p class="text-muted text-center py-3">Semua ODC sudah dipetakan</p>';
+
+    const odpList = (d.odps || []).map(o => `
+      <div class="import-item">
+        <div><div class="import-item-name">${o.nama}</div><div class="import-item-detail">Kode: ${o.kode} | Port: ${o.port || 0} | Tipe: ${o.tipe || 'HTB'}</div></div>
+        <button class="btn btn-sm btn-primary" onclick="startPlaceImport('odp',${o.id},'${o.nama}')"><i class="mdi mdi-map-marker-plus"></i> Place</button>
+      </div>
+    `).join('') || '<p class="text-muted text-center py-3">Semua ODP sudah dipetakan</p>';
+
+    const clientList = (d.clients || []).map(o => `
+      <div class="import-item">
+        <div><div class="import-item-name">${o.nama}</div><div class="import-item-detail">${o.info || '-'}</div></div>
+        <button class="btn btn-sm btn-primary" onclick="startPlaceImport('client',${o.id},'${o.nama}')"><i class="mdi mdi-map-marker-plus"></i> Place</button>
+      </div>
+    `).join('') || '<p class="text-muted text-center py-3">Semua Client sudah dipetakan</p>';
+
+    Swal.fire({
+      title: '<i class="mdi mdi-database-import me-2"></i>Import Device',
+      html: `
+        <div class="text-start">
+          <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-olt">OLT <span class="badge bg-danger">${d.olts?.length || 0}</span></a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-odc">ODC <span class="badge bg-warning">${d.odcs?.length || 0}</span></a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-odp">ODP <span class="badge bg-success">${d.odps?.length || 0}</span></a></li>
+            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-client">Client <span class="badge bg-info">${d.clients?.length || 0}</span></a></li>
+          </ul>
+          <div class="tab-content pt-3">
+            <div class="tab-pane fade show active" id="tab-olt"><div class="import-list">${oltList}</div></div>
+            <div class="tab-pane fade" id="tab-odc"><div class="import-list">${odcList}</div></div>
+            <div class="tab-pane fade" id="tab-odp"><div class="import-list">${odpList}</div></div>
+            <div class="tab-pane fade" id="tab-client"><div class="import-list">${clientList}</div></div>
+          </div>
+        </div>
+      `,
+      width: 550,
+      showConfirmButton: false,
+      showCancelButton: true,
+      cancelButtonText: '<i class="mdi mdi-close me-1"></i>Tutup',
+      customClass: { cancelButton: 'btn btn-label-secondary' },
+      buttonsStyling: false
+    });
+  }).catch(e => showToast('Gagal memuat data import: ' + e.message, 'error'));
+}
+
+function startPlaceImport(type, id, nama) {
+  Swal.close();
+  placingImport = { type, id };
+  document.getElementById('map').classList.add('adding-marker');
+
+  let ind = document.getElementById('addModeIndicator');
+  if (!ind) {
+    ind = document.createElement('div');
+    ind.id = 'addModeIndicator';
+    ind.className = 'add-mode-indicator';
+    document.body.appendChild(ind);
+  }
+  ind.innerHTML = `<i class="mdi mdi-map-marker-plus me-2"></i>Klik peta untuk menempatkan <strong>${nama}</strong>`;
+  ind.style.display = 'block';
+
+  showToast(`Klik peta untuk menempatkan ${nama}`, 'info');
+}
+
+// =============== ESC KEY TO CANCEL ===============
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    if (addingMarkerMode || placingImport) cancelAddMode();
+    if (editingRoute) disableRouteEdit(true);
+  }
+});
+
+// =============== UTILITY FUNCTIONS ===============
+function apiFetch(url, method, body) {
+  const opts = {
+    method: method || 'GET',
+    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' }
+  };
+  if (body && method !== 'GET') opts.body = JSON.stringify(body);
+  return fetch(url, opts).then(r => {
+    if (!r.ok) return r.json().then(d => { throw new Error(d.message || `HTTP ${r.status}`); });
+    return r.json();
+  });
+}
+
+function showToast(msg, type) {
+  let container = document.getElementById('toastContainer');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toastContainer';
+    container.className = 'toast-container';
+    document.body.appendChild(container);
+  }
+  const icons = { success: 'check-circle', error: 'alert-circle', info: 'information', warning: 'alert' };
+  const t = document.createElement('div');
+  t.className = `custom-toast toast-${type || 'info'}`;
+  t.innerHTML = `<i class="mdi mdi-${icons[type] || 'information'}"></i> ${msg}`;
+  container.appendChild(t);
+  setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, 3100);
+}
+
+// =============== INIT ON LOAD ===============
+document.addEventListener('DOMContentLoaded', initMap);
+</script>
+@endsection

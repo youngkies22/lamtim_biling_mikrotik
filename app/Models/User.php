@@ -21,6 +21,7 @@ class User extends Authenticatable
     'name',
     'julukan',
     'isActive',
+    'idRole',
     'wa',
     'email',
     'password',

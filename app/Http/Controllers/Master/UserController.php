@@ -81,7 +81,6 @@ class UserController extends Controller
     ];
     $arataArrayDetail = [
       'idArea'        => decrypt($validated['area']),
-      'statusIsolir'  => $validated['status_isolir'],
       'tglDafatar'    => $validated['tgl_daftar'],
       'tglJatuhTempo' => $validated['jatuh_tempo'],
       'statusPpn'     => $validated['status_ppn'],
@@ -123,7 +122,7 @@ class UserController extends Controller
    */
   public function edit(string $id)
   {
-    $query = User::with('user_detail')->find(decrypt($id));
+    $query = User::with(['user_detail', 'user_mikrotik'])->find(decrypt($id));
     return view('content.user.edit', compact('id', 'query'));
   }
 
@@ -174,7 +173,6 @@ class UserController extends Controller
     }
     $arataArrayDetail = [
       'idArea'        => decrypt($validated['area']),
-      'statusIsolir'  => $validated['status_isolir'],
       'tglDafatar'    => $validated['tgl_daftar'],
       'tglJatuhTempo' => $validated['jatuh_tempo'],
       'statusPpn'     => $validated['status_ppn'],
@@ -191,7 +189,14 @@ class UserController extends Controller
       'alamat'        => $validated['alamat'],
       'keterangan'    => $validated['keterangan'],
     ];
-    return $this->service->updateUserMikrotik($arataArray, $arataArrayDetail, decrypt($id));
+    $decryptedId = decrypt($id);
+    $response = $this->service->updateUserMikrotik($arataArray, $arataArrayDetail, $decryptedId);
+
+    // Update statusIsolir di tabel lamtim_user_mikrotik_details
+    \App\Models\Lamtim_user_mikrotik_details::where('idUser', $decryptedId)
+      ->update(['statusIsolir' => $validated['status_isolir']]);
+
+    return $response;
   }
 
   /**
@@ -211,7 +216,7 @@ class UserController extends Controller
       'id' => fn($row) => encrypt($row->id),
     ];
     $with = [
-      'user_detail:id,idUser,idArea,statusIsolir,tglDafatar,tglJatuhTempo,statusPpn,statusTagihan,jenisBayar,googleMap,js,identitas,noIdentitas,alamat,keterangan',
+      'user_detail:id,idUser,idArea,tglDafatar,tglJatuhTempo,statusPpn,statusTagihan,jenisBayar,googleMap,js,identitas,noIdentitas,alamat,keterangan',
       'user_mikrotik.mikrotik:id,nama',
       'user_mikrotik.paket:id,nama',
       'fotos:id,idPelanggan,foto,extensi,ukuran,created_at'

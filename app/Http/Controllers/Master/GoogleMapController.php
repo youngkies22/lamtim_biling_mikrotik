@@ -3,409 +3,697 @@
 namespace App\Http\Controllers\Master;
 
 use App\Http\Controllers\Controller;
-use App\Services\GoogleMapService;
-use App\Services\GoogleMapPolylineService;
-use App\Services\GoogleMapMarkerService;
+use App\Services\NetworkMapService;
+use App\Models\Lamtim_olt;
+use App\Models\Lamtim_odc;
+use App\Models\Lamtim_odp;
+use App\Models\Lamtim_user_mikrotik_details;
+use App\Models\Lamtim_user_details;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class GoogleMapController extends Controller
 {
-    protected GoogleMapService $googleMapService;
-    protected GoogleMapPolylineService $polylineService;
-    protected GoogleMapMarkerService $markerService;
+    protected NetworkMapService $networkMapService;
 
-    public function __construct(
-        GoogleMapService $googleMapService,
-        GoogleMapPolylineService $polylineService,
-        GoogleMapMarkerService $markerService
-    ) {
-        $this->googleMapService = $googleMapService;
-        $this->polylineService = $polylineService;
-        $this->markerService = $markerService;
+    public function __construct(NetworkMapService $networkMapService)
+    {
+        $this->networkMapService = $networkMapService;
     }
 
-    /**
-     * Display Google Map page
-     */
     public function index()
     {
-        $mapCenter = $this->googleMapService->getMapCenter();
-        return view('content.google-map.index', compact('mapCenter'));
+        return redirect()->route('google-map.standalone');
     }
 
-    /**
-     * Display standalone Google Map page (full-featured)
-     */
     public function standalone()
     {
-        $mapCenter = $this->googleMapService->getMapCenter();
-        $apiKey = config('services.google.maps_api_key');
-        $selectOptions = $this->markerService->getSelectOptions();
-
-        return view('content.google-map.standalone', compact('mapCenter', 'apiKey', 'selectOptions'));
+        return view('content.google-map.standalone');
     }
 
-    /**
-     * Get all map data as JSON (from markers table)
-     */
+    // ==================== DATA ENDPOINTS ====================
+
     public function getMapData()
     {
-        $markers = $this->markerService->getAll();
-        $polylines = $this->polylineService->getAll();
-        $statistics = $this->markerService->getStatistics();
-        $serverMarker = $this->googleMapService->getServerMarker();
+        $data = $this->networkMapService->getMapData();
+        return response()->json(['status' => true, 'data' => $data]);
+    }
+
+    public function getSelectOptions()
+    {
+        $options = $this->networkMapService->getSelectOptions();
+        return response()->json(['success' => true, 'data' => $options]);
+    }
+
+    // ==================== POSITION & WAYPOINTS ====================
+
+    public function updatePosition(Request $request, $type, $id)
+    {
+        $request->validate([
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+
+        $model = $this->resolveModel($type);
+        $device = $model::findOrFail($id);
+        $device->latitude = $request->latitude;
+        $device->longitude = $request->longitude;
+        $device->save();
+
+        return response()->json(['success' => true, 'message' => 'Posisi berhasil diperbarui']);
+    }
+
+    public function updateRouteWaypoints(Request $request, $type, $id)
+    {
+        $request->validate([
+            'route_waypoints' => 'nullable|array',
+            'route_waypoints.*.lat' => 'required|numeric',
+            'route_waypoints.*.lng' => 'required|numeric',
+        ]);
+
+        if (!in_array($type, ['odc', 'odp', 'client'])) {
+            return response()->json(['success' => false, 'message' => 'Tipe tidak valid'], 422);
+        }
+
+        $model = $this->resolveModel($type);
+        $device = $model::findOrFail($id);
+        $device->route_waypoints = $request->route_waypoints;
+        $device->save();
+
+        return response()->json(['success' => true, 'message' => 'Waypoints berhasil disimpan']);
+    }
+
+    // ==================== OLT CRUD ====================
+
+    public function getOLTs()
+    {
+        $olts = Lamtim_olt::select('id', 'nama', 'kode', 'ip', 'teknologi', 'port_pon', 'port_uplink', 'latitude', 'longitude', 'status')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $olts]);
+    }
+
+    public function getOLT($id)
+    {
+        $olt = Lamtim_olt::find($id);
+        if (!$olt) return response()->json(['success' => false, 'message' => 'OLT tidak ditemukan'], 404);
 
         return response()->json([
-            'status' => true,
+            'success' => true,
             'data' => [
-                'markers' => $markers,
-                'polylines' => $polylines,
-                'statistics' => $statistics,
-                'center' => $this->googleMapService->getMapCenter(),
-                'server' => $serverMarker,
+                'id' => $olt->id,
+                'nama' => $olt->nama,
+                'kode' => $olt->kode,
+                'ip' => $olt->ip,
+                'teknologi' => $olt->teknologi ?? 'EPON',
+                'port_pon' => $olt->port_pon,
+                'port_uplink' => $olt->port_uplink,
+                'lat' => $olt->latitude,
+                'lng' => $olt->longitude,
+                'status' => $olt->status,
+                'keterangan' => $olt->keterangan,
             ]
         ]);
     }
 
-    /**
-     * Get select options for dropdowns
-     */
-    public function getSelectOptions()
-    {
-        $options = $this->markerService->getSelectOptions();
-
-        return response()->json([
-            'status' => true,
-            'data' => $options
-        ]);
-    }
-
-    // === MARKER ENDPOINTS ===
-
-    /**
-     * Create a new marker
-     */
-    public function createMarker(Request $request)
+    public function createOLT(Request $request)
     {
         $validated = $request->validate([
-            'tipe' => 'required|string|in:odc,odp,user,custom',
-            'ref_id' => 'nullable|integer',
             'nama' => 'required|string|max:255',
+            'kode' => 'required|string|max:100',
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
-            'icon' => 'nullable|string|max:100',
-            'warna' => 'nullable|string|max:20',
-            'extra_data' => 'nullable|array',
+            'ip' => 'nullable|string|max:50',
+            'teknologi' => 'nullable|string',
+            'port_pon' => 'nullable|integer|min:0',
+            'port_uplink' => 'nullable|integer|min:0',
+            'keterangan' => 'nullable|string',
         ]);
 
         try {
-            $marker = $this->markerService->create($validated);
-
-            return response()->json([
-                'status' => true,
-                'message' => 'Marker berhasil dibuat',
-                'data' => $marker->toMapData()
-            ]);
+            $olt = Lamtim_olt::create($validated);
+            return response()->json(['success' => true, 'message' => 'OLT berhasil ditambahkan', 'data' => $olt]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Gagal membuat marker: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'Gagal: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Update marker position (drag)
-     */
-    public function updateMarkerPosition(Request $request, $id)
+    public function updateOLT(Request $request, $id)
     {
-        $validated = $request->validate([
-            'latitude' => 'required|numeric',
-            'longitude' => 'required|numeric',
-        ]);
-
-        $marker = $this->markerService->updatePosition($id, $validated['latitude'], $validated['longitude']);
-
-        if ($marker) {
-            return response()->json([
-                'status' => true,
-                'message' => 'Posisi marker berhasil diperbarui',
-                'data' => $marker->toMapData()
-            ]);
-        }
-
-        return response()->json([
-            'status' => false,
-            'message' => 'Marker tidak ditemukan'
-        ], 404);
-    }
-
-    /**
-     * Update marker data
-     */
-    public function updateMarker(Request $request, $id)
-    {
+        $olt = Lamtim_olt::findOrFail($id);
         $validated = $request->validate([
             'nama' => 'nullable|string|max:255',
+            'kode' => 'nullable|string|max:100',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
-            'icon' => 'nullable|string|max:100',
-            'warna' => 'nullable|string|max:20',
-            'extra_data' => 'nullable|array',
-            'is_visible' => 'nullable|boolean',
+            'ip' => 'nullable|string|max:50',
+            'teknologi' => 'nullable|string',
+            'port_pon' => 'nullable|integer|min:0',
+            'port_uplink' => 'nullable|integer|min:0',
+            'keterangan' => 'nullable|string',
         ]);
 
-        $marker = $this->markerService->update($id, $validated);
-
-        if ($marker) {
-            return response()->json([
-                'status' => true,
-                'message' => 'Marker berhasil diperbarui',
-                'data' => $marker->toMapData()
-            ]);
-        }
-
-        return response()->json([
-            'status' => false,
-            'message' => 'Marker tidak ditemukan'
-        ], 404);
+        $olt->update($validated);
+        return response()->json(['success' => true, 'message' => 'OLT berhasil diupdate', 'data' => $olt]);
     }
 
-    /**
-     * Delete marker
-     */
-    public function deleteMarker($id)
+    public function deleteOLT($id)
     {
-        $deleted = $this->markerService->delete($id);
-
-        if ($deleted) {
-            return response()->json([
-                'status' => true,
-                'message' => 'Marker berhasil dihapus'
-            ]);
-        }
-
-        return response()->json([
-            'status' => false,
-            'message' => 'Marker tidak ditemukan'
-        ], 404);
+        $olt = Lamtim_olt::findOrFail($id);
+        $olt->delete();
+        return response()->json(['success' => true, 'message' => 'OLT berhasil dihapus']);
     }
 
-    /**
-     * Import markers from existing database (bulk all)
-     */
-    public function importMarkers()
+    // ==================== ODC CRUD ====================
+
+    public function getODCs()
     {
-        $result = $this->markerService->importAll();
-
-        if ($result['success']) {
-            return response()->json([
-                'status' => true,
-                'message' => 'Markers berhasil di-import',
-                'data' => $result['imported']
-            ]);
-        }
-
-        return response()->json([
-            'status' => false,
-            'message' => 'Gagal import markers: ' . ($result['error'] ?? 'Unknown error')
-        ], 500);
+        $odcs = Lamtim_odc::select('id', 'nama', 'kode', 'port', 'portSisa', 'idOlt', 'portOlt', 'latitude', 'longitude')
+            ->get();
+        return response()->json(['success' => true, 'data' => $odcs]);
     }
 
-    /**
-     * Get available (unmapped) items from database
-     */
-    public function getAvailableItems()
+    public function getODC($id)
     {
-        $items = $this->markerService->getAvailableItems();
+        $odc = Lamtim_odc::with('olt:id,nama')->find($id);
+        if (!$odc) return response()->json(['success' => false, 'message' => 'ODC tidak ditemukan'], 404);
 
         return response()->json([
-            'status' => true,
-            'data' => $items
+            'success' => true,
+            'data' => [
+                'id' => $odc->id,
+                'nama' => $odc->nama,
+                'kode' => $odc->kode,
+                'port' => $odc->port,
+                'portSisa' => $odc->portSisa,
+                'portOlt' => $odc->portOlt,
+                'idOlt' => $odc->idOlt,
+                'olt_nama' => $odc->olt->nama ?? null,
+                'lat' => $odc->latitude,
+                'lng' => $odc->longitude,
+                'status' => $odc->status,
+                'keterangan' => $odc->keterangan,
+            ]
         ]);
     }
 
-    /**
-     * Import selected markers by IDs
-     */
-    public function importSelected(Request $request)
+    public function createODC(Request $request)
     {
         $validated = $request->validate([
-            'odc_ids' => 'nullable|array',
-            'odc_ids.*' => 'integer',
-            'odp_ids' => 'nullable|array',
-            'odp_ids.*' => 'integer',
-            'user_ids' => 'nullable|array',
-            'user_ids.*' => 'integer',
-        ]);
-
-        $result = $this->markerService->importSelected($validated);
-
-        if ($result['success']) {
-            return response()->json([
-                'status' => true,
-                'message' => 'Markers berhasil di-import',
-                'data' => $result['imported']
-            ]);
-        }
-
-        return response()->json([
-            'status' => false,
-            'message' => 'Gagal import markers: ' . ($result['error'] ?? 'Unknown error')
-        ], 500);
-    }
-
-    /**
-     * Clear all markers
-     */
-    public function clearMarkers()
-    {
-        $count = $this->markerService->clearAll();
-
-        return response()->json([
-            'status' => true,
-            'message' => "Berhasil menghapus {$count} markers"
-        ]);
-    }
-
-    // === POLYLINE ENDPOINTS ===
-
-    /**
-     * Save polyline
-     */
-    public function savePolyline(Request $request)
-    {
-        $validated = $request->validate([
-            'tipe' => 'required|string|in:odc_to_odp,odp_to_odp,odp_to_user,custom',
-            'nama' => 'nullable|string|max:255',
-            'deskripsi' => 'nullable|string',
-            'warna' => 'nullable|string|max:20',
-            'ketebalan' => 'nullable|integer|min:1|max:10',
-            'animasi' => 'nullable|boolean',
-            // Marker IDs (from lamtim_google_map_markers table)
-            'marker_from_id' => 'nullable|integer',
-            'marker_to_id' => 'nullable|integer',
-            // Legacy relation IDs (optional)
-            'id_odc_from' => 'nullable|integer',
-            'id_odp_to' => 'nullable|integer',
-            'id_odp_from' => 'nullable|integer',
-            'id_user' => 'nullable|integer',
-            // Koordinat
-            'koordinat' => 'required|array|min:2',
-            'koordinat.*.lat' => 'required|numeric',
-            'koordinat.*.lng' => 'required|numeric',
+            'nama' => 'required|string|max:255',
+            'kode' => 'required|string|max:100',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'port' => 'nullable|integer|min:0',
+            'idOlt' => 'nullable|integer|exists:lamtim_olts,id',
+            'portOlt' => 'nullable|integer|min:0',
+            'keterangan' => 'nullable|string',
         ]);
 
         try {
-            $polyline = $this->polylineService->save($validated);
-
-            return response()->json([
-                'status' => true,
-                'message' => 'Polyline berhasil disimpan',
-                'data' => [
-                    'id' => $polyline->id,
-                    'tipe' => $polyline->tipe,
-                    'koordinat' => $polyline->getResolvedCoordinates(),
-                ]
+            $port = $validated['port'] ?? 0;
+            $odc = Lamtim_odc::create([
+                'nama' => $validated['nama'],
+                'kode' => $validated['kode'],
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'port' => $port,
+                'portSisa' => $port,
+                'idOlt' => $validated['idOlt'] ?? null,
+                'portOlt' => $validated['portOlt'] ?? null,
+                'keterangan' => $validated['keterangan'] ?? null,
             ]);
+
+            return response()->json(['success' => true, 'message' => 'ODC berhasil ditambahkan', 'data' => $odc]);
         } catch (\Exception $e) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Gagal menyimpan polyline: ' . $e->getMessage()
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'Gagal: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * Update polyline coordinates
-     */
-    public function updatePolyline(Request $request, $id)
+    public function updateODC(Request $request, $id)
+    {
+        $odc = Lamtim_odc::findOrFail($id);
+        $validated = $request->validate([
+            'nama' => 'nullable|string|max:255',
+            'kode' => 'nullable|string|max:100',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'port' => 'nullable|integer|min:0',
+            'idOlt' => 'nullable|integer',
+            'portOlt' => 'nullable|integer|min:0',
+            'keterangan' => 'nullable|string',
+        ]);
+
+        if (isset($validated['port'])) {
+            $currentUsed = $odc->port - $odc->portSisa;
+            $validated['portSisa'] = max(0, $validated['port'] - $currentUsed);
+        }
+
+        $odc->update($validated);
+        return response()->json(['success' => true, 'message' => 'ODC berhasil diupdate', 'data' => $odc]);
+    }
+
+    public function deleteODC($id)
+    {
+        $odc = Lamtim_odc::findOrFail($id);
+        $odc->delete();
+        return response()->json(['success' => true, 'message' => 'ODC berhasil dihapus']);
+    }
+
+    // ==================== ODP CRUD ====================
+
+    public function getODPs()
+    {
+        $odps = Lamtim_odp::select('id', 'nama', 'kode', 'port', 'portSisa', 'idOdc', 'portOdc', 'tipe', 'latitude', 'longitude')
+            ->get();
+        return response()->json(['success' => true, 'data' => $odps]);
+    }
+
+    public function getODP($id)
+    {
+        $odp = Lamtim_odp::with(['odc:id,nama', 'parentOdp:id,nama'])->find($id);
+        if (!$odp) return response()->json(['success' => false, 'message' => 'ODP tidak ditemukan'], 404);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $odp->id,
+                'nama' => $odp->nama,
+                'kode' => $odp->kode,
+                'port' => $odp->port,
+                'portSisa' => $odp->portSisa,
+                'portOdc' => $odp->portOdc,
+                'idOdc' => $odp->idOdc,
+                'odc_nama' => $odp->odc->nama ?? null,
+                'idOdp' => $odp->idOdp,
+                'odp_parent_nama' => $odp->parentOdp->nama ?? null,
+                'tipe' => $odp->tipe ?? 'HTB',
+                'fo_a' => $odp->fo_a,
+                'fo_b' => $odp->fo_b,
+                'kabel' => $odp->kabel,
+                'lat' => $odp->latitude,
+                'lng' => $odp->longitude,
+                'status' => $odp->status,
+                'keterangan' => $odp->keterangan,
+            ]
+        ]);
+    }
+
+    public function createODP(Request $request)
     {
         $validated = $request->validate([
-            'koordinat' => 'required|array|min:2',
-            'koordinat.*.lat' => 'required|numeric',
-            'koordinat.*.lng' => 'required|numeric',
-            'warna' => 'nullable|string|max:20',
-            'ketebalan' => 'nullable|integer|min:1|max:10',
+            'nama' => 'required|string|max:255',
+            'kode' => 'required|string|max:100',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'port' => 'nullable|integer|min:0',
+            'tipe' => 'nullable|string',
+            'idOdc' => 'nullable|integer|exists:lamtim_odcs,id',
+            'idOdp' => 'nullable|integer|exists:lamtim_odps,id',
+            'portOdc' => 'nullable|integer|min:0',
+            'fo_a' => 'nullable|integer|min:0',
+            'fo_b' => 'nullable|integer|min:0',
+            'kabel' => 'nullable|string',
+            'keterangan' => 'nullable|string',
         ]);
 
-        $polyline = $this->polylineService->update($id, $validated);
-
-        if ($polyline) {
-            return response()->json([
-                'status' => true,
-                'message' => 'Polyline berhasil diperbarui',
-                'data' => [
-                    'id' => $polyline->id,
-                    'koordinat' => $polyline->getResolvedCoordinates(),
-                ]
-            ]);
+        // Validasi: pilih salah satu parent (ODC atau ODP), tidak boleh keduanya
+        if (!empty($validated['idOdc']) && !empty($validated['idOdp'])) {
+            return response()->json(['success' => false, 'message' => 'Pilih salah satu: Parent ODC atau Parent ODP (Estafet), tidak boleh keduanya'], 422);
         }
 
-        return response()->json([
-            'status' => false,
-            'message' => 'Polyline tidak ditemukan'
-        ], 404);
+        try {
+            DB::beginTransaction();
+
+            // Resolve idOlt dari parent ODC atau parent ODP
+            $idOlt = null;
+            if (!empty($validated['idOdc'])) {
+                $parentOdc = Lamtim_odc::find($validated['idOdc']);
+                $idOlt = $parentOdc?->idOlt;
+            } elseif (!empty($validated['idOdp'])) {
+                $parentOdp = Lamtim_odp::find($validated['idOdp']);
+                $idOlt = $parentOdp?->idOlt;
+            }
+
+            $port = $validated['port'] ?? 0;
+            $odp = Lamtim_odp::create([
+                'nama' => $validated['nama'],
+                'kode' => $validated['kode'],
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'port' => $port,
+                'portSisa' => $port,
+                'tipe' => $validated['tipe'] ?? 'Splitter',
+                'idOlt' => $idOlt,
+                'idOdc' => $validated['idOdc'] ?? null,
+                'idOdp' => $validated['idOdp'] ?? null,
+                'portOdc' => $validated['portOdc'] ?? null,
+                'fo_a' => $validated['fo_a'] ?? 0,
+                'fo_b' => $validated['fo_b'] ?? 0,
+                'kabel' => $validated['kabel'] ?? null,
+                'keterangan' => $validated['keterangan'] ?? null,
+            ]);
+
+            // Decrement parent ODC port (jika parent ODC)
+            if (!empty($validated['idOdc'])) {
+                Lamtim_odc::where('id', $validated['idOdc'])->where('portSisa', '>', 0)->decrement('portSisa');
+            }
+
+            // Decrement parent ODP port (jika parent ODP / estafet)
+            if (!empty($validated['idOdp'])) {
+                Lamtim_odp::where('id', $validated['idOdp'])->where('portSisa', '>', 0)->decrement('portSisa');
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'ODP berhasil ditambahkan', 'data' => $odp]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Gagal: ' . $e->getMessage()], 500);
+        }
     }
 
-    /**
-     * Delete polyline
-     */
-    public function deletePolyline($id)
+    public function updateODP(Request $request, $id)
     {
-        $deleted = $this->polylineService->delete($id);
+        $odp = Lamtim_odp::findOrFail($id);
+        $validated = $request->validate([
+            'nama' => 'nullable|string|max:255',
+            'kode' => 'nullable|string|max:100',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'port' => 'nullable|integer|min:0',
+            'tipe' => 'nullable|string',
+            'idOdc' => 'nullable|integer',
+            'idOdp' => 'nullable|integer',
+            'portOdc' => 'nullable|integer|min:0',
+            'fo_a' => 'nullable|integer|min:0',
+            'fo_b' => 'nullable|integer|min:0',
+            'kabel' => 'nullable|string',
+            'keterangan' => 'nullable|string',
+        ]);
 
-        if ($deleted) {
-            return response()->json([
-                'status' => true,
-                'message' => 'Polyline berhasil dihapus'
-            ]);
+        if (isset($validated['port'])) {
+            $currentUsed = $odp->port - $odp->portSisa;
+            $validated['portSisa'] = max(0, $validated['port'] - $currentUsed);
         }
 
-        return response()->json([
-            'status' => false,
-            'message' => 'Polyline tidak ditemukan'
-        ], 404);
+        $odp->update($validated);
+        return response()->json(['success' => true, 'message' => 'ODP berhasil diupdate', 'data' => $odp]);
     }
 
-    /**
-     * Clear all polylines
-     */
-    public function clearPolylines()
+    public function deleteODP($id)
     {
-        $this->polylineService->clearAll();
+        $odp = Lamtim_odp::findOrFail($id);
+
+        DB::beginTransaction();
+        // Restore parent ODC port
+        if ($odp->idOdc) {
+            Lamtim_odc::where('id', $odp->idOdc)->increment('portSisa');
+        }
+        // Restore parent ODP port (estafet)
+        if ($odp->idOdp) {
+            Lamtim_odp::where('id', $odp->idOdp)->increment('portSisa');
+        }
+        $odp->delete();
+        DB::commit();
+
+        return response()->json(['success' => true, 'message' => 'ODP berhasil dihapus']);
+    }
+
+    // ==================== CLIENT CRUD ====================
+
+    public function getClients()
+    {
+        $clients = Lamtim_user_mikrotik_details::with('user:id,name')
+            ->select('id', 'idUser', 'idOdp', 'localAdress', 'latitude', 'longitude', 'status')
+            ->get()
+            ->map(fn($c) => [
+                'id' => $c->id,
+                'nama' => $c->user->name ?? 'Unknown',
+                'latitude' => $c->latitude,
+                'longitude' => $c->longitude,
+            ]);
+
+        return response()->json(['success' => true, 'data' => $clients]);
+    }
+
+    public function getClient($id)
+    {
+        $client = Lamtim_user_mikrotik_details::with(['user:id,name,wa', 'user.user_detail:id,idUser,tglDafatar,tglJatuhTempo', 'odp:id,nama'])->find($id);
+        if (!$client) return response()->json(['success' => false, 'message' => 'Client tidak ditemukan'], 404);
+
+        $userDetail = $client->user->user_detail ?? null;
 
         return response()->json([
-            'status' => true,
-            'message' => 'Semua polyline berhasil dihapus'
+            'success' => true,
+            'data' => [
+                'id' => $client->id,
+                'nama' => $client->user->name ?? 'Unknown',
+                'wa' => $client->user->wa ?? '-',
+                'idOdp' => $client->idOdp,
+                'odp_nama' => $client->odp->nama ?? null,
+                'ip' => $client->localAdress,
+                'lat' => $client->latitude,
+                'lng' => $client->longitude,
+                'status' => $client->status,
+                'idKategori' => $client->idKategori,
+                'idPaket' => $client->idPaket,
+                'idMikrotik' => $client->idMikrotik,
+                'portOdp' => $client->portOdp,
+                'namaMikrotikUser' => $client->namaMikrotikUser,
+                'idMikrotikUser' => $client->idMikrotikUser,
+                'serviceMikrotikUser' => $client->serviceMikrotikUser,
+                'profileMikrotikUser' => $client->profileMikrotikUser,
+                'password' => $client->password,
+                'keterangan' => $client->keterangan,
+                'tglDaftar' => $userDetail->tglDafatar ?? null,
+                'tglJatuhTempo' => $userDetail->tglJatuhTempo ?? null,
+            ]
         ]);
     }
 
-    // === LEGACY ENDPOINTS ===
-
-    public function saveRoute(Request $request)
+    public function createClient(Request $request)
     {
-        $request->validate([
-            'coordinates' => 'required|array|min:2',
-            'coordinates.*.lat' => 'required|numeric',
-            'coordinates.*.lng' => 'required|numeric',
+        $validated = $request->validate([
+            'nama' => 'required|string|max:255',
+            'wa' => 'nullable|string|max:20',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+            'idOdp' => 'nullable|integer|exists:lamtim_odps,id',
+            'portOdp' => 'nullable|integer|min:0',
+            'idKategori' => 'nullable|integer',
+            'idPaket' => 'nullable|integer',
+            'idMikrotik' => 'nullable|integer',
+            'secretName' => 'nullable|string|max:255',
+            'secretId' => 'nullable|string|max:255',
+            'secretService' => 'nullable|string|max:255',
+            'secretProfile' => 'nullable|string|max:255',
+            'secretPassword' => 'nullable|string|max:255',
+            'ip' => 'nullable|string|max:50',
+            'keterangan' => 'nullable|string',
+            'status' => 'nullable|string|in:online,offline,isolir',
+            'tglDaftar' => 'nullable|date',
+            'tglJatuhTempo' => 'nullable|date',
         ]);
 
-        $polyline = $this->polylineService->createCustom($request->coordinates, [
-            'nama' => $request->name,
-            'warna' => $request->color ?? '#3388ff',
-            'ketebalan' => $request->weight ?? 3,
-        ]);
+        try {
+            DB::beginTransaction();
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Route berhasil disimpan',
-            'data' => $polyline
-        ]);
+            $user = User::create([
+                'name' => $validated['nama'],
+                'email' => 'client_' . time() . '_' . rand(100, 999) . '@local.net',
+                'password' => bcrypt('password'),
+                'wa' => $validated['wa'] ?? '-',
+                'idRole' => 5,
+            ]);
+
+            // Create user_details with dates from form
+            Lamtim_user_details::create([
+                'idUser' => $user->id,
+                'tglDafatar' => $validated['tglDaftar'] ?? now()->toDateString(),
+                'tglJatuhTempo' => $validated['tglJatuhTempo'] ?? now()->addMonth()->toDateString(),
+                'statusPpn' => 1,
+                'statusTagihan' => 1,
+                'jenisBayar' => 1,
+                'js' => 'L',
+                'identitas' => 'KTP',
+            ]);
+
+            // Resolve OLT/ODC from ODP
+            $idOlt = null;
+            $idOdc = null;
+            if (!empty($validated['idOdp'])) {
+                $odp = Lamtim_odp::find($validated['idOdp']);
+                if ($odp) {
+                    $idOlt = $odp->idOlt;
+                    $idOdc = $odp->idOdc;
+                }
+            }
+
+            $client = Lamtim_user_mikrotik_details::create([
+                'idUser' => $user->id,
+                'latitude' => $validated['latitude'],
+                'longitude' => $validated['longitude'],
+                'idOlt' => $idOlt,
+                'idOdc' => $idOdc,
+                'idOdp' => $validated['idOdp'] ?? null,
+                'portOdp' => $validated['portOdp'] ?? null,
+                'idKategori' => $validated['idKategori'] ?? null,
+                'idPaket' => $validated['idPaket'] ?? null,
+                'idMikrotik' => $validated['idMikrotik'] ?? null,
+                'namaMikrotikUser' => $validated['secretName'] ?? null,
+                'idMikrotikUser' => $validated['secretId'] ?? null,
+                'serviceMikrotikUser' => $validated['secretService'] ?? null,
+                'profileMikrotikUser' => $validated['secretProfile'] ?? null,
+                'password' => $validated['secretPassword'] ?? null,
+                'localAdress' => $validated['ip'] ?? null,
+                'statusIsolir' => ($validated['status'] ?? 'online') === 'isolir' ? 1 : 0,
+                'status' => $validated['status'] ?? 'online',
+                'keterangan' => $validated['keterangan'] ?? null,
+            ]);
+
+            // Decrement parent ODP port
+            if (!empty($validated['idOdp']) && isset($odp) && $odp->portSisa > 0) {
+                $odp->decrement('portSisa');
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Client berhasil ditambahkan', 'data' => $client]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['success' => false, 'message' => 'Gagal: ' . $e->getMessage()], 500);
+        }
     }
 
-    public function deleteRoute($id)
+    public function updateClient(Request $request, $id)
     {
-        return $this->deletePolyline($id);
+        $client = Lamtim_user_mikrotik_details::with(['user.user_detail'])->findOrFail($id);
+        $validated = $request->validate([
+            'nama' => 'nullable|string|max:255',
+            'wa' => 'nullable|string|max:20',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
+            'idOdp' => 'nullable|integer',
+            'portOdp' => 'nullable|integer|min:0',
+            'idKategori' => 'nullable|integer',
+            'idPaket' => 'nullable|integer',
+            'idMikrotik' => 'nullable|integer',
+            'secretName' => 'nullable|string|max:255',
+            'secretId' => 'nullable|string|max:255',
+            'secretService' => 'nullable|string|max:255',
+            'secretProfile' => 'nullable|string|max:255',
+            'secretPassword' => 'nullable|string|max:255',
+            'ip' => 'nullable|string|max:50',
+            'keterangan' => 'nullable|string',
+            'status' => 'nullable|string|in:online,offline,isolir',
+            'tglDaftar' => 'nullable|date',
+            'tglJatuhTempo' => 'nullable|date',
+        ]);
+
+        if (isset($validated['nama']) && $client->user) {
+            $userUpdate = ['name' => $validated['nama']];
+            if (isset($validated['wa'])) $userUpdate['wa'] = $validated['wa'];
+            $client->user->update($userUpdate);
+        }
+
+        // Resolve OLT/ODC from ODP if changed
+        $idOlt = $client->idOlt;
+        $idOdc = $client->idOdc;
+        if (isset($validated['idOdp']) && $validated['idOdp'] != $client->idOdp) {
+            if ($validated['idOdp']) {
+                $odp = Lamtim_odp::find($validated['idOdp']);
+                if ($odp) { $idOlt = $odp->idOlt; $idOdc = $odp->idOdc; }
+            } else {
+                $idOlt = null; $idOdc = null;
+            }
+        }
+
+        $client->update([
+            'latitude' => $validated['latitude'] ?? $client->latitude,
+            'longitude' => $validated['longitude'] ?? $client->longitude,
+            'idOlt' => $idOlt,
+            'idOdc' => $idOdc,
+            'idOdp' => $validated['idOdp'] ?? $client->idOdp,
+            'portOdp' => $validated['portOdp'] ?? $client->portOdp,
+            'idKategori' => $validated['idKategori'] ?? $client->idKategori,
+            'idPaket' => $validated['idPaket'] ?? $client->idPaket,
+            'idMikrotik' => $validated['idMikrotik'] ?? $client->idMikrotik,
+            'namaMikrotikUser' => $validated['secretName'] ?? $client->namaMikrotikUser,
+            'idMikrotikUser' => $validated['secretId'] ?? $client->idMikrotikUser,
+            'serviceMikrotikUser' => $validated['secretService'] ?? $client->serviceMikrotikUser,
+            'profileMikrotikUser' => $validated['secretProfile'] ?? $client->profileMikrotikUser,
+            'password' => $validated['secretPassword'] ?? $client->password,
+            'localAdress' => $validated['ip'] ?? $client->localAdress,
+            'keterangan' => $validated['keterangan'] ?? $client->keterangan,
+            'status' => $validated['status'] ?? $client->status,
+            'statusIsolir' => isset($validated['status']) ? ($validated['status'] === 'isolir' ? 1 : 0) : $client->statusIsolir,
+        ]);
+
+        // Update tglDaftar / tglJatuhTempo on user_details
+        if (isset($validated['tglDaftar']) || isset($validated['tglJatuhTempo'])) {
+            $userDetail = $client->user->user_detail ?? null;
+            if ($userDetail) {
+                $detailUpdate = [];
+                if (isset($validated['tglDaftar'])) $detailUpdate['tglDafatar'] = $validated['tglDaftar'];
+                if (isset($validated['tglJatuhTempo'])) $detailUpdate['tglJatuhTempo'] = $validated['tglJatuhTempo'];
+                $userDetail->update($detailUpdate);
+            }
+        }
+
+        return response()->json(['success' => true, 'message' => 'Client berhasil diupdate', 'data' => $client]);
+    }
+
+    public function deleteClient($id)
+    {
+        $client = Lamtim_user_mikrotik_details::findOrFail($id);
+
+        DB::beginTransaction();
+        // Restore parent ODP port
+        if ($client->idOdp) {
+            Lamtim_odp::where('id', $client->idOdp)->increment('portSisa');
+        }
+        $client->delete();
+        DB::commit();
+
+        return response()->json(['success' => true, 'message' => 'Client berhasil dihapus']);
+    }
+
+    // ==================== IMPORT (UNMAPPED ITEMS) ====================
+
+    public function getUnmappedItems()
+    {
+        $data = $this->networkMapService->getUnmappedItems();
+        return response()->json(['success' => true, 'data' => $data]);
+    }
+
+    public function setItemCoordinates(Request $request)
+    {
+        $validated = $request->validate([
+            'type' => 'required|string|in:olt,odc,odp,client',
+            'id' => 'required|integer',
+            'latitude' => 'required|numeric',
+            'longitude' => 'required|numeric',
+        ]);
+
+        $model = $this->resolveModel($validated['type']);
+        $device = $model::findOrFail($validated['id']);
+        $device->latitude = $validated['latitude'];
+        $device->longitude = $validated['longitude'];
+        $device->save();
+
+        return response()->json(['success' => true, 'message' => 'Koordinat berhasil disimpan']);
+    }
+
+    // ==================== HELPERS ====================
+
+    private function resolveModel(string $type): string
+    {
+        return match ($type) {
+            'olt' => Lamtim_olt::class,
+            'odc' => Lamtim_odc::class,
+            'odp' => Lamtim_odp::class,
+            'client' => Lamtim_user_mikrotik_details::class,
+            default => throw new \InvalidArgumentException("Unknown type: {$type}"),
+        };
     }
 }

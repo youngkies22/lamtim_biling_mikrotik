@@ -102,9 +102,9 @@
 
         columnDefs: [{
           className: 'control',
-          //orderable: !1,
+          orderable: false,
           targets: 0,
-          searchable: !1,
+          searchable: false,
           render: function() {
             return ''
           }

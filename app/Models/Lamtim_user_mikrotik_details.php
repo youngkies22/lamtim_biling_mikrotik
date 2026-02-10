@@ -9,6 +9,10 @@ class Lamtim_user_mikrotik_details extends Model
   protected $hidden = ['created_at'];
   protected $guarded = [];
 
+  protected $casts = [
+    'route_waypoints' => 'array',
+  ];
+
   public function olt()
   {
     return $this->belongsTo(Lamtim_olt::class, 'idOlt', 'id');

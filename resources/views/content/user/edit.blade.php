@@ -141,8 +141,8 @@
       <div class="col-md-6">
         <div class="form-floating form-floating-outline">
           <select name="status_isolir" class="form-select" required>
-            <option {{ $query->user_detail?->statusIsolir == 1 ? 'selected' : '' }} value="1">Iya</option>
-            <option {{ $query->user_detail?->statusIsolir == 0 ? 'selected' : '' }} value="0">Tidak</option>
+            <option {{ $query->user_mikrotik?->statusIsolir == 1 ? 'selected' : '' }} value="1">Iya</option>
+            <option {{ $query->user_mikrotik?->statusIsolir == 0 ? 'selected' : '' }} value="0">Tidak</option>
           </select>
           <label for="status_isolir">Status Isolir</label>
         </div>

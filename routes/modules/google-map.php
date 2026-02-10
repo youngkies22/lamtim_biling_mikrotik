@@ -11,23 +11,40 @@ Route::prefix('google-map')->as('google-map.')->controller(GoogleMapController::
     Route::get('/data', 'getMapData')->name('data');
     Route::get('/select-options', 'getSelectOptions')->name('select-options');
 
-    // === MARKER ENDPOINTS ===
-    Route::post('/marker', 'createMarker')->name('marker.create');
-    Route::put('/marker/{id}/position', 'updateMarkerPosition')->name('marker.position');
-    Route::put('/marker/{id}', 'updateMarker')->name('marker.update');
-    Route::delete('/marker/{id}', 'deleteMarker')->name('marker.delete');
-    Route::post('/marker/import', 'importMarkers')->name('marker.import');
-    Route::get('/marker/available', 'getAvailableItems')->name('marker.available');
-    Route::post('/marker/import-selected', 'importSelected')->name('marker.import-selected');
-    Route::delete('/marker/clear/all', 'clearMarkers')->name('marker.clear');
+    // === POSITION & WAYPOINTS ===
+    Route::put('/position/{type}/{id}', 'updatePosition')->name('position.update');
+    Route::put('/route-waypoints/{type}/{id}', 'updateRouteWaypoints')->name('route-waypoints.update');
 
-    // === POLYLINE ENDPOINTS ===
-    Route::post('/polyline', 'savePolyline')->name('polyline.save');
-    Route::put('/polyline/{id}', 'updatePolyline')->name('polyline.update');
-    Route::delete('/polyline/{id}', 'deletePolyline')->name('polyline.delete');
-    Route::delete('/polyline/clear/all', 'clearPolylines')->name('polyline.clear');
+    // === DEVICE CRUD ===
+    // OLT
+    Route::get('/olts', 'getOLTs')->name('olts');
+    Route::get('/olt/{id}', 'getOLT')->name('olt.show');
+    Route::post('/olt', 'createOLT')->name('olt.create');
+    Route::put('/olt/{id}', 'updateOLT')->name('olt.update');
+    Route::delete('/olt/{id}', 'deleteOLT')->name('olt.delete');
 
-    // Legacy route endpoints (backwards compatible)
-    Route::post('/route', 'saveRoute')->name('route.save');
-    Route::delete('/route/{id}', 'deleteRoute')->name('route.delete');
+    // ODC
+    Route::get('/odcs', 'getODCs')->name('odcs');
+    Route::get('/odc/{id}', 'getODC')->name('odc.show');
+    Route::post('/odc', 'createODC')->name('odc.create');
+    Route::put('/odc/{id}', 'updateODC')->name('odc.update');
+    Route::delete('/odc/{id}', 'deleteODC')->name('odc.delete');
+
+    // ODP
+    Route::get('/odps', 'getODPs')->name('odps');
+    Route::get('/odp/{id}', 'getODP')->name('odp.show');
+    Route::post('/odp', 'createODP')->name('odp.create');
+    Route::put('/odp/{id}', 'updateODP')->name('odp.update');
+    Route::delete('/odp/{id}', 'deleteODP')->name('odp.delete');
+
+    // Client
+    Route::get('/clients', 'getClients')->name('clients');
+    Route::get('/client/{id}', 'getClient')->name('client.show');
+    Route::post('/client', 'createClient')->name('client.create');
+    Route::put('/client/{id}', 'updateClient')->name('client.update');
+    Route::delete('/client/{id}', 'deleteClient')->name('client.delete');
+
+    // === IMPORT ===
+    Route::get('/unmapped-items', 'getUnmappedItems')->name('unmapped-items');
+    Route::post('/set-coordinates', 'setItemCoordinates')->name('set-coordinates');
 });

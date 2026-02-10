@@ -1,308 +1,6 @@
 @extends('layouts/layoutMaster')
 
 @section('title', 'Data Pelanggan Mapping')
-
-@section("vendor-style")
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-<!-- Leaflet fullscreen CSS -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet.fullscreen@1.6.0/Control.FullScreen.css" />
-<style>
-  #map {
-    height: 100vh;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* Pastikan map container tidak membuat stacking context yang mengganggu */
-  #map.leaflet-container {
-    z-index: 1 !important;
-    position: relative !important;
-  }
-
-  /* Pastikan leaflet container memiliki z-index rendah */
-  .leaflet-container {
-    z-index: 1 !important;
-    position: relative !important;
-  }
-
-  .leaflet-pane {
-    z-index: 1 !important;
-  }
-
-  .leaflet-map-pane {
-    z-index: 1 !important;
-  }
-
-  .leaflet-tile-pane {
-    z-index: 1 !important;
-  }
-
-  .leaflet-overlay-pane {
-    z-index: 2 !important;
-  }
-
-  .leaflet-shadow-pane {
-    z-index: 3 !important;
-  }
-
-  .leaflet-marker-pane {
-    z-index: 4 !important;
-  }
-
-  .leaflet-tooltip-pane {
-    z-index: 5 !important;
-  }
-
-  .leaflet-popup-pane {
-    z-index: 6 !important;
-  }
-
-  .leaflet-top,
-  .leaflet-bottom {
-    z-index: 7 !important;
-  }
-
-  .leaflet-control {
-    z-index: 7 !important;
-  }
-
-  /* Perbaiki z-index untuk dropdown menu agar muncul di atas map */
-  .dropdown-menu {
-    z-index: 9999 !important;
-  }
-
-  .dropdown {
-    z-index: 9999 !important;
-  }
-
-  .dropdown.show {
-    z-index: 9999 !important;
-  }
-
-  .dropdown-toggle::after {
-    z-index: 10000 !important;
-  }
-
-  /* Perbaiki z-index untuk menu horizontal (menu-sub) - hanya z-index, jangan ubah position */
-  .menu-sub {
-    z-index: 9999 !important;
-  }
-
-  .menu-dropdown {
-    z-index: 9999 !important;
-  }
-
-  .menu-item.menu-dropdown {
-    z-index: 9999 !important;
-  }
-
-  .menu-item.menu-dropdown.open {
-    z-index: 9999 !important;
-  }
-
-  .menu-horizontal {
-    z-index: 9998 !important;
-  }
-
-  .layout-menu-horizontal {
-    z-index: 9998 !important;
-  }
-
-  /* Pastikan semua elemen dropdown di atas map */
-  body .dropdown-menu {
-    z-index: 9999 !important;
-  }
-
-  body .navbar .dropdown-menu {
-    z-index: 9999 !important;
-  }
-
-  body .menu-sub {
-    z-index: 9999 !important;
-  }
-
-  /* Pastikan parent element dropdown juga di atas */
-  .navbar-nav .dropdown {
-    z-index: 9999 !important;
-  }
-
-  .navbar-nav .nav-item.dropdown {
-    z-index: 9999 !important;
-  }
-
-  /* Pastikan semua elemen di navbar di atas map */
-  .layout-navbar .dropdown-menu {
-    z-index: 9999 !important;
-  }
-
-  .layout-navbar .navbar-nav {
-    z-index: 9999 !important;
-  }
-
-  .layout-navbar .nav-item {
-    z-index: 9999 !important;
-  }
-
-  /* Pastikan layout wrapper tidak menghalangi */
-  .layout-wrapper {
-    z-index: 10 !important;
-  }
-
-  .layout-navbar {
-    z-index: 9998 !important;
-  }
-
-  /* Pastikan content wrapper di atas map */
-  .content-wrapper {
-    z-index: 10 !important;
-  }
-
-  .layout-page {
-    z-index: 10 !important;
-  }
-
-  .offcanvas {
-    z-index: 1055 !important;
-  }
-
-  .modal {
-    z-index: 1060 !important;
-  }
-
-  .btn-group {
-    z-index: 1050 !important;
-    position: relative !important;
-  }
-
-  /* Pastikan card dan form di atas map */
-  .card {
-    position: relative;
-    z-index: 10 !important;
-  }
-
-  /* Pastikan navbar dan menu di atas map */
-  .layout-navbar {
-    z-index: 9998 !important;
-    position: relative !important;
-  }
-
-  .layout-menu {
-    z-index: 1020 !important;
-  }
-
-  .navbar {
-    z-index: 9998 !important;
-    position: relative !important;
-  }
-
-  .navbar-brand,
-  .navbar-nav,
-  .navbar-nav .nav-link {
-    z-index: 9998 !important;
-    position: relative !important;
-  }
-
-  /* Pastikan dropdown di navbar juga di atas map */
-  .navbar .dropdown-menu {
-    z-index: 9999 !important;
-    position: absolute !important;
-  }
-
-  .navbar .dropdown {
-    z-index: 9999 !important;
-    position: relative !important;
-  }
-
-  .navbar .dropdown.show {
-    z-index: 9999 !important;
-  }
-
-  /* Pastikan tooltip dan popover di atas map */
-  .tooltip {
-    z-index: 1070 !important;
-  }
-
-  .popover {
-    z-index: 1060 !important;
-  }
-
-  /* Pastikan select2 dropdown di atas map */
-  .select2-container {
-    z-index: 1050 !important;
-  }
-
-  .select2-dropdown {
-    z-index: 1051 !important;
-  }
-
-  /* Pastikan label select2 tetap terlihat */
-  #secretapi-select+label,
-  .select2-container+label {
-    display: block !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-  }
-
-  /* Pastikan select2 dropdown selalu tampil ke bawah */
-  .select2-container--open .select2-dropdown {
-    top: 100% !important;
-    bottom: auto !important;
-  }
-
-  .custom-marker {
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    display: block;
-    border: 2px solid white;
-    box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
-  }
-
-  .odc-icon {
-    background-color: orange;
-  }
-
-  .odp-icon {
-    background-color: green;
-  }
-
-  .distance-label {
-    background: rgba(255, 255, 255, 0.8);
-    padding: 2px 4px;
-    border-radius: 4px;
-    font-size: 10px;
-    color: #333;
-    border: 1px solid #ccc;
-  }
-
-  .custom-marker {
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-
-    0%,
-    100% {
-      transform: scale(1);
-      opacity: 1;
-    }
-
-    50% {
-      transform: scale(1.1);
-      opacity: 0.8;
-    }
-  }
-
-</style>
-@endsection
-
-
-@section("vendor-script")
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<!-- Leaflet fullscreen JS -->
-<script src="https://unpkg.com/leaflet.fullscreen@1.6.0/Control.FullScreen.js"></script>
-@endsection
-
 @section('page-script')
 @php
 // Prepare semua data PHP di luar JavaScript untuk menghindari auto-format issues
@@ -311,64 +9,6 @@ $dariDbValue = $dariDb ?? '';
 $hasUserMikrotikValue = $hasUserMikrotik ?? false;
 $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
 @endphp
-<script>
-  // Perbaiki z-index dropdown saat dibuka - hanya z-index, jangan ubah position
-  $(document).on('show.bs.dropdown', '.dropdown', function() {
-    $(this).css('z-index', '9999');
-    $(this).find('.dropdown-menu').css('z-index', '9999');
-    // Pastikan parent juga memiliki z-index tinggi
-    $(this).closest('.navbar-nav, .navbar, .layout-navbar').css('z-index', '9998');
-  });
-
-  $(document).on('shown.bs.dropdown', '.dropdown', function() {
-    $(this).css('z-index', '9999');
-    $(this).find('.dropdown-menu').css('z-index', '9999');
-    // Pastikan parent juga memiliki z-index tinggi
-    $(this).closest('.navbar-nav, .navbar, .layout-navbar').css('z-index', '9998');
-  });
-
-  // Pastikan saat dropdown ditutup, z-index tetap tinggi untuk navbar
-  $(document).on('hide.bs.dropdown', '.dropdown', function() {
-    $(this).closest('.navbar-nav, .navbar, .layout-navbar').css('z-index', '9998');
-  });
-
-  // Perbaiki z-index untuk menu horizontal (menu-sub)
-  function fixMenuZIndex() {
-    // Pastikan menu-sub selalu di atas map - hanya z-index, jangan ubah position
-    $('.menu-sub').css('z-index', '9999');
-    $('.menu-dropdown').css('z-index', '9999');
-    $('.menu-item.menu-dropdown').css('z-index', '9999');
-    $('.menu-horizontal, .layout-menu-horizontal').css('z-index', '9998');
-    $('.menu-item.menu-dropdown.open').css('z-index', '9999');
-  }
-
-  $(document).ready(function() {
-    fixMenuZIndex();
-
-    // Update z-index saat menu dibuka/ditutup
-    $(document).on('click', '.menu-toggle', function() {
-      setTimeout(fixMenuZIndex, 50);
-    });
-
-    // Observer untuk perubahan class
-    const observer = new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
-          setTimeout(fixMenuZIndex, 10);
-        }
-      });
-    });
-
-    // Observe semua menu-item
-    $('.menu-item.menu-dropdown').each(function() {
-      observer.observe(this, {
-        attributes: true
-        , attributeFilter: ['class']
-      });
-    });
-  });
-
-</script>
 <script>
   const paketData = @json(Helper::getPaketGrouped());
 
@@ -543,12 +183,10 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
         , idmikrotik: $('select[name="idmikrotik"]').val()
         , nama: $('#nama').val()
         , wa: $('#wa').val()
-        , odp: $('select[name="odp"]').val(), // Pastikan select ODP punya name="odp"
-        idd: $('#idd').val()
-        , latitude: $('#lat').val()
-        , longitude: $('#lng').val()
+        , odp: $('select[name="odp"]').val()
+        , idd: $('#idd').val()
         , port: $('#port').val()
-      , };
+      };
 
       if (aksi === '1') {
         // Ambil dari manual input
@@ -587,8 +225,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
 
   });
 
-</script>
-<script>
+
+
   const latitude = "{{ config('services.mapping.latitude-server') }}";
   const longitude = "{{ config('services.mapping.longitude-server') }}";
   const centerLatLng = [parseFloat(latitude), parseFloat(longitude)];
@@ -944,7 +582,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
                 <select required name="kategori" id="kategori" class="form-select">
                   <option value="00">Pilih</option>
                   @foreach (Helper::getKategori() as $val)
-                  <option {{ $query->user_mikrotik?->idKategori == $val->id ? 'selected' : '' }} value="{{ $val->id }}">{{ $val->nama }}</option>
+                  <option {{ $query->user_mikrotik?->idKategori == $val->id ? 'selected' : '' }} value="{{ $val->id
+                    }}">{{ $val->nama }}</option>
                   @endforeach
                 </select>
                 <label>Kategori</label>
@@ -957,7 +596,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
                 <select required name="paket" id="paket" class="form-select">
                   <option value="00">Pilih</option>
                   @foreach (Helper::getPaket() as $val)
-                  <option {{ $query->user_mikrotik?->idPaket == $val->id ? 'selected' : '' }} value="{{ $val->id }}">{{ $val->nama }}</option>
+                  <option {{ $query->user_mikrotik?->idPaket == $val->id ? 'selected' : '' }} value="{{ $val->id }}">{{
+                    $val->nama }}</option>
                   @endforeach
                 </select>
                 <label>Paket</label>
@@ -999,7 +639,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
           <div class="col-md-2 mb-3">
             <div class="input-group input-group-merge">
               <div class="form-floating form-floating-outline w-100">
-                <input type="number" id="port" name="port" class="form-control" value="{{ $query->user_mikrotik?->portOdp ?? null }}" autocomplete="off" />
+                <input type="number" id="port" name="port" class="form-control"
+                  value="{{ $query->user_mikrotik?->portOdp ?? null }}" autocomplete="off" />
                 <label>Lokasi Port ODP</label>
               </div>
             </div>
@@ -1007,7 +648,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
           <div class="col-md-3 mb-3">
             <div class="input-group input-group-merge">
               <div class="form-floating form-floating-outline w-100">
-                <input type="text" id="nama" name="nama" class="form-control" value="{{ $query->name ?? null }}" readonly disabled />
+                <input type="text" id="nama" name="nama" class="form-control" value="{{ $query->name ?? null }}"
+                  readonly disabled />
                 <input type="hidden" id="idd" name="idd" class="form-control" value="{{ $id }}" readonly />
                 <label>Nama</label>
               </div>
@@ -1016,7 +658,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
           <div class="col-md-3 mb-3">
             <div class="input-group input-group-merge">
               <div class="form-floating form-floating-outline w-100">
-                <input type="text" id="wa" name="wa" class="form-control" value="{{ $query->wa ?? null }}" readonly disabled />
+                <input type="text" id="wa" name="wa" class="form-control" value="{{ $query->wa ?? null }}" readonly
+                  disabled />
                 <label>Wa</label>
               </div>
             </div>
@@ -1036,7 +679,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
             <div class="col-md-1 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input readonly value="{{ $query->user_mikrotik?->idMikrotikUser ?? '' }}" type="text" name="id-api" id="id-api" class="form-control" />
+                  <input readonly value="{{ $query->user_mikrotik?->idMikrotikUser ?? '' }}" type="text" name="id-api"
+                    id="id-api" class="form-control" />
                   <label>Id Api</label>
                 </div>
               </div>
@@ -1045,7 +689,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
             <div class="col-md-2 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input readonly value="{{ $query->user_mikrotik?->serviceMikrotikUser ?? '' }}" type="text" name="service-api" id="service-api" class="form-control" />
+                  <input readonly value="{{ $query->user_mikrotik?->serviceMikrotikUser ?? '' }}" type="text"
+                    name="service-api" id="service-api" class="form-control" />
                   <label>Service Api</label>
                 </div>
               </div>
@@ -1054,7 +699,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
             <div class="col-md-2 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input readonly value="{{ $query->user_mikrotik?->profileMikrotikUser ?? '' }}" type="text" name="profile-api" id="profile-api" class="form-control" />
+                  <input readonly value="{{ $query->user_mikrotik?->profileMikrotikUser ?? '' }}" type="text"
+                    name="profile-api" id="profile-api" class="form-control" />
                   <label>Paket Api</label>
                 </div>
               </div>
@@ -1062,7 +708,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
             <div class="col-md-2 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input readonly value="{{ $query->user_mikrotik?->password ?? '' }}" type="text" name="password-api" id="password-api" class="form-control" />
+                  <input readonly value="{{ $query->user_mikrotik?->password ?? '' }}" type="text" name="password-api"
+                    id="password-api" class="form-control" />
                   <label>password Api</label>
                 </div>
               </div>
@@ -1076,7 +723,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
             <div class="col-md-3 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input type="text" name="secretapi" id="secretapi-input" class="form-control" placeholder="mryes22@codeteam.id" value="{{ $query->user_mikrotik?->namaMikrotikUser ?? '' }}" />
+                  <input type="text" name="secretapi" id="secretapi-input" class="form-control"
+                    placeholder="mryes22@codeteam.id" value="{{ $query->user_mikrotik?->namaMikrotikUser ?? '' }}" />
                   <label>Secret</label>
                 </div>
               </div>
@@ -1085,7 +733,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
             <div class="col-md-4 mb-3">
               <div class="input-group input-group-merge">
                 <div class="form-floating form-floating-outline w-100">
-                  <input type="text" id="password" name="password" class="form-control" value="{{ $query->user_mikrotik?->password ?? '' }}" />
+                  <input type="text" id="password" name="password" class="form-control"
+                    value="{{ $query->user_mikrotik?->password ?? '' }}" />
                   <label>Password Secret</label>
                 </div>
               </div>
@@ -1094,29 +743,8 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
 
         </div>
         <div class="row">
-          <div class="col-md-4 mb-3">
-            <label for="lat" class="form-label">Latitude</label>
-            <input value=" {{ $query->user_mikrotik?->latitude ?? '' }}" type="text" id="lat" name="latitude" class="form-control" readonly />
-          </div>
-
-          <div class="col-md-4 mb-3">
-            <label for="lng" class="form-label">Longitude</label>
-            <input value=" {{ $query->user_mikrotik?->longitude ?? '' }}" type="text" id="lng" name="longitude" class="form-control" readonly />
-          </div>
-        </div>
-        <div class="row">
-          <div class="col-md-4 mb-3">
-            <div class="col-md-4 mb-3 d-flex align-items-end">
-              <button type="button" id="submitMapping" class="btn btn-primary me-2 w-100 ">Simpan</button>
-              <button type="button" class="btn btn-info w-100" data-bs-toggle="modal" data-bs-target="#infoAksiModal">
-                <i class="fas fa-info-circle"></i> Info</button>
-            </div>
-          </div>
-        </div>
-        {{-- Baris 2: Latitude, Longitude, Tombol --}}
-        <div class="row">
-          <div class="col-md-12 ">
-            <div id="map" style="width: 100%; height: 500px; border-radius: 8px;"></div>
+          <div class="col-md-4 mb-3 d-flex align-items-end">
+            <button type="button" id="submitMapping" class="btn btn-primary w-100">Simpan</button>
           </div>
         </div>
       </div>
@@ -1125,32 +753,4 @@ $hasNamaMikrotikUserValue = $hasNamaMikrotikUser ?? false;
 
   </div>
 </div>
-<div class="modal fade" id="infoAksiModal" tabindex="-1" aria-labelledby="infoAksiModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="infoAksiModalLabel">Penjelasan AKSI & PAKET</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
-      </div>
-      <div class="modal-body " style="font-size: 0.95rem;">
-        <p>✅ Jika <strong>AKSI</strong> dipilih <em>buat data ke mikrotik</em>, maka akan dibuatkan user secret PPPoE
-          langsung dari aplikasi.</p>
-        <p>✅ Jika <strong>AKSI</strong> dipilih <em>ambil data mikrotik</em>, berarti user secret sudah dibuat manual di
-          Mikrotik, lalu tinggal dipetakan (mapping) ke aplikasi.</p>
-        <p>🔁 Untuk <strong>update data</strong>, cukup pilih AKSI <em>ambil data mikrotik</em> dan biarkan kolom secret
-          kosong.</p>
-        <p>✏️ Jika ingin <strong>mengganti user secret</strong> pelanggan dari halaman ini, pilih AKSI <em>buat data ke
-            mikrotik</em>. Sistem akan otomatis membuat atau memperbarui secret tersebut.</p>
-        <p>📦 <strong>PAKET</strong> adalah data yang sudah diinput sebelumnya melalui menu <em>Internet Paket</em> dan
-          <strong>wajib sama persis</strong> dengan nama paket di Mikrotik (profil).
-        </p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
 @endsection
