@@ -333,6 +333,7 @@ class NetworkMapService
         $kategoris = Lamtim_kategori::select('id', 'nama')->get();
         $pakets = Lamtim_paket::select('id', 'nama', 'kode', 'idKategori', 'price')->get();
         $mikrotiks = Lamtim_mikrotik::where('isActive', 1)->select('id', 'nama', 'kode', 'ip')->get();
+        $areas = Lamtim_area::select('id', 'name', 'code_area')->get();
 
         return [
             'olts' => $olts,
@@ -341,6 +342,7 @@ class NetworkMapService
             'kategoris' => $kategoris,
             'pakets' => $pakets,
             'mikrotiks' => $mikrotiks,
+            'areas' => $areas,
         ];
     }
 }

@@ -1741,6 +1741,7 @@ function showClientModal(editData, lat, lng) {
   const odpOpts = selectOptions.odps.map(o => `<option value="${o.id}" ${isEdit && editData.idOdp==o.id ? 'selected' : ''}>${o.nama} (${o.kode}) - sisa: ${o.portSisa || 0}</option>`).join('');
   const mkOpts = selectOptions.mikrotiks.map(o => `<option value="${o.id}" ${isEdit && editData.idMikrotik==o.id ? 'selected' : ''}>${o.nama} (${o.ip})</option>`).join('');
   const katOpts = selectOptions.kategoris.map(o => `<option value="${o.id}" ${isEdit && editData.idKategori==o.id ? 'selected' : ''}>${o.nama}</option>`).join('');
+  const areaOpts = (selectOptions.areas || []).map(o => `<option value="${o.id}" ${isEdit && editData.idArea==o.id ? 'selected' : ''}>${o.name} (${o.code_area || '-'})</option>`).join('');
   const paketAll = selectOptions.pakets || [];
 
   Swal.fire({
@@ -1782,6 +1783,10 @@ function showClientModal(editData, lat, lng) {
               <option value="offline" ${isEdit && editData.status === 'offline' ? 'selected' : ''}>Offline</option>
               <option value="isolir" ${isEdit && editData.status === 'isolir' ? 'selected' : ''}>Isolir</option>
             </select>
+          </div>
+
+          <div class="col-md-6"><label class="form-label">Area</label>
+            <select id="s-idArea" class="form-select"><option value="">-- Pilih Area --</option>${areaOpts}</select>
           </div>
 
           <div class="col-12"><hr class="my-1"><small class="text-muted fw-bold"><i class="mdi mdi-api me-1"></i>Detail API Mikrotik (otomatis dari secret)</small></div>
@@ -1979,6 +1984,7 @@ function showClientModal(editData, lat, lng) {
         longitude: parseFloat(document.getElementById('s-lng').value),
         keterangan: document.getElementById('s-keterangan').value.trim() || null,
         status: document.getElementById('s-status').value || 'online',
+        idArea: document.getElementById('s-idArea').value || null,
         tglDaftar: document.getElementById('s-tglDaftar').value || null,
         tglJatuhTempo: document.getElementById('s-tglJatuhTempo').value || null,
       };

@@ -440,7 +440,7 @@ class GoogleMapController extends Controller
 
     public function getClient($id)
     {
-        $client = Lamtim_user_mikrotik_details::with(['user:id,name,wa', 'user.user_detail:id,idUser,tglDafatar,tglJatuhTempo', 'odp:id,nama'])->find($id);
+        $client = Lamtim_user_mikrotik_details::with(['user:id,name,wa', 'user.user_detail:id,idUser,idArea,tglDafatar,tglJatuhTempo', 'odp:id,nama'])->find($id);
         if (!$client) return response()->json(['success' => false, 'message' => 'Client tidak ditemukan'], 404);
 
         $userDetail = $client->user->user_detail ?? null;
@@ -467,6 +467,7 @@ class GoogleMapController extends Controller
                 'profileMikrotikUser' => $client->profileMikrotikUser,
                 'password' => $client->password,
                 'keterangan' => $client->keterangan,
+                'idArea' => $userDetail->idArea ?? null,
                 'tglDaftar' => $userDetail->tglDafatar ?? null,
                 'tglJatuhTempo' => $userDetail->tglJatuhTempo ?? null,
             ]
@@ -493,6 +494,7 @@ class GoogleMapController extends Controller
             'ip' => 'nullable|string|max:50',
             'keterangan' => 'nullable|string',
             'status' => 'nullable|string|in:online,offline,isolir',
+            'idArea' => 'nullable|integer',
             'tglDaftar' => 'nullable|date',
             'tglJatuhTempo' => 'nullable|date',
         ]);
@@ -511,6 +513,7 @@ class GoogleMapController extends Controller
             // Create user_details with dates from form
             Lamtim_user_details::create([
                 'idUser' => $user->id,
+                'idArea' => $validated['idArea'] ?? null,
                 'tglDafatar' => $validated['tglDaftar'] ?? now()->toDateString(),
                 'tglJatuhTempo' => $validated['tglJatuhTempo'] ?? now()->addMonth()->toDateString(),
                 'statusPpn' => 1,
@@ -587,6 +590,7 @@ class GoogleMapController extends Controller
             'ip' => 'nullable|string|max:50',
             'keterangan' => 'nullable|string',
             'status' => 'nullable|string|in:online,offline,isolir',
+            'idArea' => 'nullable|integer',
             'tglDaftar' => 'nullable|date',
             'tglJatuhTempo' => 'nullable|date',
         ]);
@@ -630,15 +634,14 @@ class GoogleMapController extends Controller
             'statusIsolir' => isset($validated['status']) ? ($validated['status'] === 'isolir' ? 1 : 0) : $client->statusIsolir,
         ]);
 
-        // Update tglDaftar / tglJatuhTempo on user_details
-        if (isset($validated['tglDaftar']) || isset($validated['tglJatuhTempo'])) {
-            $userDetail = $client->user->user_detail ?? null;
-            if ($userDetail) {
-                $detailUpdate = [];
-                if (isset($validated['tglDaftar'])) $detailUpdate['tglDafatar'] = $validated['tglDaftar'];
-                if (isset($validated['tglJatuhTempo'])) $detailUpdate['tglJatuhTempo'] = $validated['tglJatuhTempo'];
-                $userDetail->update($detailUpdate);
-            }
+        // Update user_details (area, tglDaftar, tglJatuhTempo)
+        $userDetail = $client->user->user_detail ?? null;
+        if ($userDetail) {
+            $detailUpdate = [];
+            if (array_key_exists('idArea', $validated)) $detailUpdate['idArea'] = $validated['idArea'];
+            if (isset($validated['tglDaftar'])) $detailUpdate['tglDafatar'] = $validated['tglDaftar'];
+            if (isset($validated['tglJatuhTempo'])) $detailUpdate['tglJatuhTempo'] = $validated['tglJatuhTempo'];
+            if (!empty($detailUpdate)) $userDetail->update($detailUpdate);
         }
 
         return response()->json(['success' => true, 'message' => 'Client berhasil diupdate', 'data' => $client]);
