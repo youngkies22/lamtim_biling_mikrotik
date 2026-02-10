@@ -9,6 +9,7 @@ use App\Models\Lamtim_odc;
 use App\Models\Lamtim_odp;
 use App\Models\Lamtim_user_mikrotik_details;
 use App\Models\Lamtim_user_details;
+use App\Models\Lamtim_area;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -682,6 +683,50 @@ class GoogleMapController extends Controller
         $device->save();
 
         return response()->json(['success' => true, 'message' => 'Koordinat berhasil disimpan']);
+    }
+
+    // ==================== AREA CRUD ====================
+
+    public function createArea(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'address' => 'nullable|string|max:500',
+            'code_area' => 'required|string|max:10|unique:lamtim_areas,code_area',
+            'coordinates' => 'required|array|min:3',
+            'coordinates.*.lat' => 'required|numeric',
+            'coordinates.*.lng' => 'required|numeric',
+            'color' => 'nullable|string|max:7',
+        ]);
+
+        $area = Lamtim_area::create($validated);
+        return response()->json(['success' => true, 'message' => 'Area berhasil ditambahkan', 'data' => $area]);
+    }
+
+    public function updateArea(Request $request, $id)
+    {
+        $decryptedId = decrypt($id);
+        $area = Lamtim_area::findOrFail($decryptedId);
+
+        $validated = $request->validate([
+            'name' => 'nullable|string|max:255',
+            'address' => 'nullable|string|max:500',
+            'code_area' => 'nullable|string|max:10|unique:lamtim_areas,code_area,' . $decryptedId,
+            'coordinates' => 'nullable|array|min:3',
+            'coordinates.*.lat' => 'required|numeric',
+            'coordinates.*.lng' => 'required|numeric',
+            'color' => 'nullable|string|max:7',
+        ]);
+
+        $area->update($validated);
+        return response()->json(['success' => true, 'message' => 'Area berhasil diupdate']);
+    }
+
+    public function deleteArea($id)
+    {
+        $decryptedId = decrypt($id);
+        Lamtim_area::findOrFail($decryptedId)->delete();
+        return response()->json(['success' => true, 'message' => 'Area berhasil dihapus']);
     }
 
     // ==================== HELPERS ====================

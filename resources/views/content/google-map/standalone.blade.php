@@ -4,6 +4,7 @@
 
 @section('vendor-style')
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
 @endsection
 
 @section('page-style')
@@ -647,6 +648,23 @@
     display: none;
   }
 
+  /* ========== AREA POLYGON ========== */
+  .toggle-pill[data-layer="area"].active { background: #9c27b0; }
+  .fab-item[data-type="area"] { color: #9c27b0; }
+  .fab-item[data-type="area"]:hover { background: #9c27b0; color: #fff; }
+  .area-label {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-size: 12px;
+    font-weight: 600;
+    color: #333;
+    text-shadow: 0 0 3px #fff, 0 0 6px #fff;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .leaflet-draw-toolbar { display: none !important; }
+
   /* ========== BRANDING ========== */
   .brand-label {
     position: fixed;
@@ -717,6 +735,7 @@
     <button class="toggle-pill active" data-layer="client"><i class="mdi mdi-account-outline"></i> Client</button>
     <button class="toggle-pill active" data-layer="routes"><i class="mdi mdi-vector-polyline"></i> Garis</button>
     <button class="toggle-pill active" data-layer="labels"><i class="mdi mdi-label-outline"></i> Label</button>
+    <button class="toggle-pill active" data-layer="area"><i class="mdi mdi-vector-polygon"></i> Area</button>
     <button class="toggle-pill" data-layer="distance"><i class="mdi mdi-ruler"></i> Jarak</button>
     <button class="line-mode-btn" id="btnLineMode"><i class="mdi mdi-chart-timeline-variant"></i> <span id="lineModeLabel">Normal</span></button>
   </div>
@@ -740,6 +759,7 @@
       <button class="fab-item" data-type="odc"><i class="mdi mdi-router-network"></i> ODC</button>
       <button class="fab-item" data-type="odp"><i class="mdi mdi-cube-outline"></i> ODP</button>
       <button class="fab-item" data-type="client"><i class="mdi mdi-account-outline"></i> Client</button>
+      <button class="fab-item" data-type="area"><i class="mdi mdi-vector-polygon"></i> Area</button>
     </div>
     <div style="display:flex;gap:12px;align-items:center;">
       <button class="import-fab" id="btnImport" title="Import Device"><i class="mdi mdi-database-import"></i></button>
@@ -753,6 +773,7 @@
 
 @section('vendor-script')
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @endsection
 
@@ -784,7 +805,8 @@ let layerGroups = {
   olt: L.layerGroup(),
   odc: L.layerGroup(),
   odp: L.layerGroup(),
-  client: L.layerGroup()
+  client: L.layerGroup(),
+  area: L.layerGroup()
 };
 let routeLines = [];
 let routeGlowLines = []; // secondary glow layers for mode 3
@@ -862,8 +884,14 @@ function loadMapData() {
       (d.odps || []).forEach(o => addDeviceMarker('odp', o));
       (d.clients || []).forEach(o => addDeviceMarker('client', o));
 
+      // Areas
+      (d.areas || []).forEach(a => addAreaPolygon(a));
+
       // Routes
       (d.routes || []).forEach(r => addRouteLine(r));
+
+      // Apply saved toggle states after data loads
+      applyToggleStates();
     })
     .catch(e => console.error('Error loading map data:', e));
 }
@@ -1307,40 +1335,77 @@ function disableRouteEdit(reload) {
 }
 
 // =============== TOGGLE VISIBILITY ===============
+function saveToggleStates() {
+  const states = {};
+  document.querySelectorAll('.toggle-pill').forEach(pill => {
+    states[pill.dataset.layer] = pill.classList.contains('active');
+  });
+  localStorage.setItem('mapToggleStates', JSON.stringify(states));
+}
+
+function restoreToggleStates() {
+  const saved = localStorage.getItem('mapToggleStates');
+  if (!saved) return;
+  try {
+    const states = JSON.parse(saved);
+    document.querySelectorAll('.toggle-pill').forEach(pill => {
+      const layer = pill.dataset.layer;
+      if (states[layer] !== undefined) {
+        if (states[layer]) pill.classList.add('active');
+        else pill.classList.remove('active');
+      }
+    });
+  } catch(e) {}
+}
+
+function applyToggleStates() {
+  document.querySelectorAll('.toggle-pill').forEach(pill => {
+    const layer = pill.dataset.layer;
+    const active = pill.classList.contains('active');
+    applyToggle(layer, active);
+  });
+}
+
+function applyToggle(layer, active) {
+  if (layer === 'labels') {
+    labelsVisible = active;
+    allMarkers.forEach(m => {
+      if (m.getTooltip()) {
+        if (active) m.openTooltip();
+        else m.closeTooltip();
+      }
+    });
+  } else if (layer === 'routes') {
+    routeLines.forEach(rl => {
+      if (active) { if (!map.hasLayer(rl)) rl.addTo(map); }
+      else map.removeLayer(rl);
+    });
+    routeGlowLines.forEach(gl => {
+      if (active) { if (!map.hasLayer(gl)) gl.addTo(map); }
+      else map.removeLayer(gl);
+    });
+  } else if (layer === 'distance') {
+    distanceVisible = active;
+    distanceLabels.forEach(dl => {
+      if (active) { if (!map.hasLayer(dl)) dl.addTo(map); }
+      else map.removeLayer(dl);
+    });
+  } else if (layerGroups[layer]) {
+    if (active) { if (!map.hasLayer(layerGroups[layer])) layerGroups[layer].addTo(map); }
+    else map.removeLayer(layerGroups[layer]);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+  restoreToggleStates();
+
   document.querySelectorAll('.toggle-pill').forEach(pill => {
     pill.addEventListener('click', function() {
       const layer = this.dataset.layer;
       this.classList.toggle('active');
       const active = this.classList.contains('active');
-
-      if (layer === 'labels') {
-        labelsVisible = active;
-        allMarkers.forEach(m => {
-          if (m.getTooltip()) {
-            if (active) m.openTooltip();
-            else m.closeTooltip();
-          }
-        });
-      } else if (layer === 'routes') {
-        routeLines.forEach(rl => {
-          if (active) { if (!map.hasLayer(rl)) rl.addTo(map); }
-          else map.removeLayer(rl);
-        });
-        routeGlowLines.forEach(gl => {
-          if (active) { if (!map.hasLayer(gl)) gl.addTo(map); }
-          else map.removeLayer(gl);
-        });
-      } else if (layer === 'distance') {
-        distanceVisible = active;
-        distanceLabels.forEach(dl => {
-          if (active) { if (!map.hasLayer(dl)) dl.addTo(map); }
-          else map.removeLayer(dl);
-        });
-      } else if (layerGroups[layer]) {
-        if (active) { if (!map.hasLayer(layerGroups[layer])) layerGroups[layer].addTo(map); }
-        else map.removeLayer(layerGroups[layer]);
-      }
+      applyToggle(layer, active);
+      saveToggleStates();
     });
   });
 });
@@ -1425,7 +1490,11 @@ document.addEventListener('DOMContentLoaded', function() {
       const type = this.dataset.type;
       fabMain.classList.remove('active');
       fabMenu.classList.remove('show');
-      startAddMode(type);
+      if (type === 'area') {
+        startAreaDrawMode();
+      } else {
+        startAddMode(type);
+      }
     });
   });
 });
@@ -1827,7 +1896,30 @@ function showClientModal(editData, lat, lng) {
 
       // --- Search input events ---
       searchInput.addEventListener('focus', () => {
-        if (allSecrets.length) renderSecretDropdown(searchInput.value);
+        // Jika secrets belum di-load tapi mikrotik sudah dipilih, load sekarang
+        const mkId = selMk.value;
+        if (!allSecrets.length && mkId) {
+          searchInput.placeholder = 'Memuat...';
+          document.getElementById('s-secret-loading').style.display = 'block';
+          fetch(`/select/secret-api/${mkId}`, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content } })
+            .then(r => r.json())
+            .then(res => {
+              document.getElementById('s-secret-loading').style.display = 'none';
+              if (res.status && res.data && res.data.length) {
+                allSecrets = res.data;
+                searchInput.placeholder = `Ketik untuk cari (${allSecrets.length} secret)`;
+                renderSecretDropdown(searchInput.value);
+              } else {
+                searchInput.placeholder = 'Tidak ada secret';
+              }
+            })
+            .catch(() => {
+              document.getElementById('s-secret-loading').style.display = 'none';
+              searchInput.placeholder = 'Gagal memuat secret';
+            });
+        } else if (allSecrets.length) {
+          renderSecretDropdown(searchInput.value);
+        }
       });
       searchInput.addEventListener('input', () => {
         clearSecretFields();
@@ -1853,24 +1945,16 @@ function showClientModal(editData, lat, lng) {
       }
       selKat.addEventListener('change', updatePaketOptions);
 
-      // --- Pre-fill on edit ---
+      // --- Pre-fill on edit (tampilkan data dari DB, tanpa auto-load secrets) ---
       if (isEdit) {
         if (editData.idKategori) updatePaketOptions();
         if (editData.idMikrotik) {
-          // Show current secret name while loading
+          // Tampilkan nama secret dari DB tanpa trigger reload
           if (editData.namaMikrotikUser) {
             searchInput.value = `${editData.namaMikrotikUser} (${editData.profileMikrotikUser || '-'})`;
+            searchInput.disabled = false;
+            searchInput.placeholder = 'Klik untuk ganti, atau ganti Mikrotik Server';
           }
-          selMk.dispatchEvent(new Event('change'));
-          // After secrets load, auto-select the matching one
-          const checkSecret = setInterval(() => {
-            if (allSecrets.length > 0) {
-              clearInterval(checkSecret);
-              const match = allSecrets.find(s => s.name === editData.namaMikrotikUser);
-              if (match) selectSecret(match);
-            }
-          }, 300);
-          setTimeout(() => clearInterval(checkSecret), 10000);
         }
       }
     },
@@ -1905,6 +1989,132 @@ function showClientModal(editData, lat, lng) {
     const method = isEdit ? 'PUT' : 'POST';
     apiFetch(url, method, result.value)
       .then(() => { showToast(`Client berhasil ${isEdit ? 'diupdate' : 'ditambahkan'}`, 'success'); loadMapData(); loadSelectOptions(); })
+      .catch(e => showToast('Gagal: ' + e.message, 'error'));
+  });
+}
+
+// =============== AREA POLYGONS ===============
+function addAreaPolygon(area) {
+  if (!area.coordinates || area.coordinates.length < 3) return;
+  const latlngs = area.coordinates.map(c => [c.lat, c.lng]);
+  const color = area.color || '#696cff';
+
+  const polygon = L.polygon(latlngs, {
+    color: color, weight: 2, fillColor: color, fillOpacity: 0.15, dashArray: '6, 4'
+  });
+
+  const center = polygon.getBounds().getCenter();
+  const label = L.marker(center, {
+    icon: L.divIcon({ className: 'area-label', html: `<span>${area.name}</span>`, iconSize: [120, 20], iconAnchor: [60, 10] }),
+    interactive: false
+  });
+
+  polygon.bindPopup(`
+    <div style="min-width:200px;">
+      <h6 class="mb-2"><i class="mdi mdi-vector-polygon me-1" style="color:${color}"></i>${area.name}</h6>
+      <table class="table table-sm mb-0" style="font-size:12px;">
+        <tr><td class="text-muted"><strong>Kode</strong></td><td>${area.code_area || '-'}</td></tr>
+        <tr><td class="text-muted"><strong>Alamat</strong></td><td>${area.address || '-'}</td></tr>
+      </table>
+      <div class="popup-actions">
+        <button onclick="editAreaPolygon('${area.id}')" class="popup-btn popup-btn-edit"><i class="mdi mdi-pencil"></i> Edit</button>
+        <button onclick="deleteArea('${area.id}','${(area.name||'').replace(/'/g,"\\'")}')" class="popup-btn popup-btn-delete"><i class="mdi mdi-delete"></i> Hapus</button>
+      </div>
+    </div>
+  `, { maxWidth: 280 });
+
+  polygon._areaData = area;
+  layerGroups.area.addLayer(polygon);
+  layerGroups.area.addLayer(label);
+}
+
+function startAreaDrawMode() {
+  const drawHandler = new L.Draw.Polygon(map, {
+    allowIntersection: false,
+    showArea: true,
+    shapeOptions: { color: '#9c27b0', weight: 2, fillOpacity: 0.2 }
+  });
+  drawHandler.enable();
+  showToast('Klik pada peta untuk menggambar area. Klik titik pertama untuk menutup.', 'info');
+
+  function onCreated(e) {
+    map.off(L.Draw.Event.CREATED, onCreated);
+    const coords = e.layer.getLatLngs()[0].map(ll => ({ lat: ll.lat, lng: ll.lng }));
+    showAreaModal(null, coords);
+  }
+  map.on(L.Draw.Event.CREATED, onCreated);
+}
+
+function showAreaModal(editData, coordinates) {
+  const isEdit = !!editData;
+  Swal.fire({
+    title: `<i class="mdi mdi-vector-polygon me-2" style="color:#9c27b0"></i>${isEdit ? 'Edit' : 'Tambah'} Area`,
+    html: `
+      <div class="text-start">
+        <div class="row g-3">
+          <div class="col-md-6"><label class="form-label">Nama Area <span class="text-danger">*</span></label><input type="text" id="s-area-name" class="form-control" value="${isEdit ? editData.name : ''}"></div>
+          <div class="col-md-6"><label class="form-label">Kode Area <span class="text-danger">*</span></label><input type="text" id="s-area-code" class="form-control" value="${isEdit ? (editData.code_area||'') : ''}" placeholder="AR-01"></div>
+          <div class="col-12"><label class="form-label">Alamat</label><input type="text" id="s-area-address" class="form-control" value="${isEdit ? (editData.address||'') : ''}"></div>
+          <div class="col-md-6"><label class="form-label">Warna</label><input type="color" id="s-area-color" class="form-control form-control-color" value="${isEdit ? (editData.color||'#696cff') : '#696cff'}" style="height:38px;width:100%;"></div>
+          <div class="col-md-6"><label class="form-label">Titik Polygon</label><div class="form-control-plaintext text-muted">${coordinates.length} titik</div></div>
+        </div>
+      </div>
+    `,
+    width: 500,
+    showCancelButton: true,
+    confirmButtonText: `<i class="mdi mdi-content-save me-1"></i>${isEdit ? 'Update' : 'Simpan'}`,
+    cancelButtonText: '<i class="mdi mdi-close me-1"></i>Batal',
+    customClass: { confirmButton: 'btn btn-primary me-2', cancelButton: 'btn btn-label-secondary' },
+    buttonsStyling: false,
+    preConfirm: () => {
+      const name = document.getElementById('s-area-name').value.trim();
+      const code = document.getElementById('s-area-code').value.trim();
+      if (!name || !code) { Swal.showValidationMessage('Nama dan Kode wajib diisi'); return false; }
+      return {
+        name,
+        code_area: code,
+        address: document.getElementById('s-area-address').value.trim() || null,
+        color: document.getElementById('s-area-color').value,
+        coordinates: coordinates,
+      };
+    }
+  }).then(result => {
+    if (!result.isConfirmed) return;
+    const url = isEdit ? `${BASE}/area/${editData.id}` : `${BASE}/area`;
+    const method = isEdit ? 'PUT' : 'POST';
+    apiFetch(url, method, result.value)
+      .then(() => { showToast(`Area berhasil ${isEdit ? 'diupdate' : 'ditambahkan'}`, 'success'); loadMapData(); })
+      .catch(e => showToast('Gagal: ' + e.message, 'error'));
+  });
+}
+
+function editAreaPolygon(areaId) {
+  map.closePopup();
+  // Find area data from current layer
+  let areaData = null;
+  layerGroups.area.eachLayer(l => {
+    if (l._areaData && l._areaData.id === areaId) areaData = l._areaData;
+  });
+  if (areaData) {
+    showAreaModal(areaData, areaData.coordinates);
+  }
+}
+
+function deleteArea(areaId, areaName) {
+  map.closePopup();
+  Swal.fire({
+    title: 'Hapus Area?',
+    text: `Area "${areaName}" akan dihapus permanen.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonText: '<i class="mdi mdi-delete me-1"></i>Hapus',
+    cancelButtonText: '<i class="mdi mdi-close me-1"></i>Batal',
+    customClass: { confirmButton: 'btn btn-danger me-2', cancelButton: 'btn btn-label-secondary' },
+    buttonsStyling: false,
+  }).then(result => {
+    if (!result.isConfirmed) return;
+    apiFetch(`${BASE}/area/${areaId}`, 'DELETE')
+      .then(() => { showToast('Area berhasil dihapus', 'success'); loadMapData(); })
       .catch(e => showToast('Gagal: ' + e.message, 'error'));
   });
 }

@@ -48,6 +48,12 @@
                   <div>Kelola Isolir</div>
                 </a>
               </li>
+              <li class="menu-item">
+                <a href="{{ route('mikrotik.sync-customers') }}" class="menu-link">
+                  <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
+                  <div>Sinkron Pelanggan</div>
+                </a>
+              </li>
             </ul>
           </li>
           <li class="menu-item">
@@ -66,12 +72,6 @@
             <a href="{{ route('odp.index') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
               <div>ODP</div>
-            </a>
-          </li>
-          <li class="menu-item">
-            <a href="{{ route('mapping.server') }}" class="menu-link">
-              <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
-              <div>MAPPING</div>
             </a>
           </li>
           <li class="menu-item">

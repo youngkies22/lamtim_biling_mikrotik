@@ -45,6 +45,11 @@
           "url": "/mikrotik/pppoe-manage",
           "name": "Kelola PPPoE",
           "slug": "mikrotik.pppoe-manage"
+        },
+        {
+          "url": "/mikrotik/sync-customers",
+          "name": "Sinkron Pelanggan",
+          "slug": "mikrotik.sync-customers"
         }
       ]
     }

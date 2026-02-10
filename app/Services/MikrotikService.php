@@ -10,6 +10,9 @@
 namespace App\Services;
 
 use App\Models\Lamtim_mikrotik;
+use App\Models\Lamtim_user_details;
+use App\Models\Lamtim_user_mikrotik_details;
+use App\Models\User;
 use App\Repositories\MikrotikRepository;
 use App\SendRespon\LamtimResponse;
 use App\Services\MikrotikMulti;
@@ -17,6 +20,7 @@ use Carbon\Carbon;
 use Exception;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\Facades\DataTables;
 use \RouterOS\Client;
@@ -388,5 +392,129 @@ class MikrotikService
       Log::error("Gagal aktifkan PPPoE '{$pppoeUsername}': " . $e->getMessage());
       return ['success' => false, 'message' => 'Gagal aktifkan: ' . $e->getMessage()];
     }
+  }
+
+  /**
+   * Fetch PPPoE secrets dari Mikrotik dan bandingkan dengan database.
+   */
+  public function fetchSecretsForSync(int $idMikrotik): array
+  {
+    try {
+      $secrets = MikrotikMulti::commandApi($idMikrotik, '/ppp/secret/print', ['service' => 'pppoe']);
+
+      // Ambil semua user mikrotik detail yang terhubung ke server ini (match by nama secret saja)
+      $existingUsers = Lamtim_user_mikrotik_details::where('idMikrotik', $idMikrotik)
+        ->get()
+        ->keyBy('namaMikrotikUser');
+
+      $result = [];
+      foreach ($secrets as $secret) {
+        $name = $secret['name'] ?? '';
+        $apiId = $secret['.id'] ?? '';
+
+        // Match by namaMikrotikUser saja (id API bisa tabrakan antar server)
+        $existing = $existingUsers->get($name);
+
+        $result[] = [
+          'mikrotik_id'    => $apiId,
+          'name'           => $name,
+          'password'       => $secret['password'] ?? '',
+          'service'        => $secret['service'] ?? 'pppoe',
+          'profile'        => $secret['profile'] ?? 'default',
+          'remote_address' => $secret['remote-address'] ?? '',
+          'disabled'       => ($secret['disabled'] ?? 'false') === 'true',
+          'comment'        => $secret['comment'] ?? '',
+          'status'         => $existing ? 'existing' : 'new',
+          'db_id'          => $existing ? $existing->id : null,
+          'db_user_id'     => $existing ? $existing->idUser : null,
+          'db_user_name'   => $existing ? ($existing->user->name ?? '-') : null,
+        ];
+      }
+
+      return ['success' => true, 'data' => $result];
+    } catch (\Exception $e) {
+      Log::error("Gagal fetch secrets untuk sync dari Mikrotik ID {$idMikrotik}: " . $e->getMessage());
+      return ['success' => false, 'data' => [], 'message' => $e->getMessage()];
+    }
+  }
+
+  /**
+   * Eksekusi sinkronisasi: update existing, create new.
+   */
+  public function executeSyncCustomers(int $idMikrotik, array $secrets): array
+  {
+    $created = 0;
+    $updated = 0;
+    $failed = 0;
+    $errors = [];
+
+    foreach ($secrets as $secret) {
+      try {
+        if ($secret['status'] === 'existing' && !empty($secret['db_id'])) {
+          // Update existing user mikrotik details
+          $mikrotikDetail = Lamtim_user_mikrotik_details::find($secret['db_id']);
+          if ($mikrotikDetail) {
+            $mikrotikDetail->update([
+              'idMikrotikUser'       => $secret['mikrotik_id'],
+              'namaMikrotikUser'     => $secret['name'],
+              'serviceMikrotikUser'  => $secret['service'],
+              'profileMikrotikUser'  => $secret['profile'],
+              'password'             => $secret['password'],
+            ]);
+            $updated++;
+          } else {
+            $failed++;
+            $errors[] = "{$secret['name']}: Data mikrotik detail tidak ditemukan (ID: {$secret['db_id']})";
+          }
+        } elseif ($secret['status'] === 'new') {
+          // Buat user baru dalam transaksi
+          DB::transaction(function () use ($secret, $idMikrotik, &$created) {
+            // 1. Create User
+            $user = User::create([
+              'name'     => $secret['name'],
+              'email'    => $secret['name'] . '@sync.local',
+              'password' => Hash::make($secret['password'] ?: 'password123'),
+              'idRole'   => 5,
+              'isActive' => 1,
+              'wa'       => '-',
+            ]);
+
+            // 2. Create user details
+            Lamtim_user_details::create([
+              'idUser'       => $user->id,
+              'tglDafatar'   => now()->format('Y-m-d'),
+              'statusPpn'    => 0,
+              'statusTagihan'=> 0,
+              'jenisBayar'   => 1,
+            ]);
+
+            // 3. Create user mikrotik details
+            Lamtim_user_mikrotik_details::create([
+              'idUser'              => $user->id,
+              'idMikrotik'          => $idMikrotik,
+              'idMikrotikUser'      => $secret['mikrotik_id'],
+              'namaMikrotikUser'    => $secret['name'],
+              'serviceMikrotikUser' => $secret['service'],
+              'profileMikrotikUser' => $secret['profile'],
+              'password'            => $secret['password'],
+            ]);
+
+            $created++;
+          });
+        }
+      } catch (\Exception $e) {
+        $failed++;
+        $errors[] = "{$secret['name']}: " . $e->getMessage();
+        Log::error("Sync error for secret '{$secret['name']}': " . $e->getMessage());
+      }
+    }
+
+    return [
+      'success' => true,
+      'created' => $created,
+      'updated' => $updated,
+      'failed'  => $failed,
+      'errors'  => $errors,
+    ];
   }
 }

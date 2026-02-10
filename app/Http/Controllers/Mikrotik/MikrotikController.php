@@ -175,6 +175,49 @@ class MikrotikController extends Controller
     return response()->json(['error' => !$result['success'], 'message' => $result['message']], $result['success'] ? 200 : 422);
   }
 
+  // === Sinkron Pelanggan ===
+
+  public function syncCustomers()
+  {
+    return view('content.server.sync-customers');
+  }
+
+  public function fetchSecretsForSync(int $idMikrotik)
+  {
+    $result = $this->mikrotikService->fetchSecretsForSync($idMikrotik);
+
+    if (!$result['success']) {
+      return response()->json([
+        'error'   => true,
+        'message' => 'Gagal mengambil data secrets: ' . ($result['message'] ?? ''),
+      ], 500);
+    }
+
+    return response()->json(['error' => false, 'data' => $result['data']]);
+  }
+
+  public function executeSyncCustomers(Request $request)
+  {
+    $validated = $request->validate([
+      'idMikrotik' => 'required|integer',
+      'secrets'    => 'required|array',
+      'secrets.*.mikrotik_id'  => 'required|string',
+      'secrets.*.name'         => 'required|string',
+      'secrets.*.password'     => 'nullable|string',
+      'secrets.*.service'      => 'nullable|string',
+      'secrets.*.profile'      => 'nullable|string',
+      'secrets.*.status'       => 'required|in:new,existing',
+      'secrets.*.db_id'        => 'nullable|integer',
+    ]);
+
+    $result = $this->mikrotikService->executeSyncCustomers(
+      $validated['idMikrotik'],
+      $validated['secrets']
+    );
+
+    return response()->json($result);
+  }
+
   // === Kelola Isolir ===
 
   public function kelolaIsolir()

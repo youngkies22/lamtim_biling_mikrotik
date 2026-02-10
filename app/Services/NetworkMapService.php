@@ -6,6 +6,7 @@ use App\Models\Lamtim_olt;
 use App\Models\Lamtim_odc;
 use App\Models\Lamtim_odp;
 use App\Models\Lamtim_user_mikrotik_details;
+use App\Models\Lamtim_area;
 use App\Models\Lamtim_kategori;
 use App\Models\Lamtim_paket;
 use App\Models\Lamtim_mikrotik;
@@ -21,6 +22,7 @@ class NetworkMapService
             'odps'   => $this->getOdps(),
             'clients' => $this->getClients(),
             'routes' => $this->getAutoRoutes(),
+            'areas'  => $this->getAreas(),
         ];
     }
 
@@ -130,6 +132,22 @@ class NetworkMapService
                     'lng' => (float) $client->longitude,
                     'route_waypoints' => $client->route_waypoints,
                     'keterangan' => $client->keterangan ?? null,
+                ];
+            })->toArray();
+    }
+
+    public function getAreas(): array
+    {
+        return Lamtim_area::whereNotNull('coordinates')
+            ->get()
+            ->map(function ($area) {
+                return [
+                    'id' => $area->id,
+                    'name' => $area->name,
+                    'address' => $area->address,
+                    'code_area' => $area->code_area,
+                    'coordinates' => $area->coordinates,
+                    'color' => $area->color ?? '#696cff',
                 ];
             })->toArray();
     }

@@ -14,6 +14,11 @@ Route::prefix('mikrotik')->as('mikrotik.')->controller(MikrotikController::class
   Route::post('/pppoe-manage/disable', 'disablePppoe')->name('pppoe-manage.disable');
   Route::post('/pppoe-manage/enable', 'enablePppoe')->name('pppoe-manage.enable');
 
+  // === Sinkron Pelanggan ===
+  Route::get('/sync-customers', 'syncCustomers')->name('sync-customers');
+  Route::get('/sync-customers/fetch/{idMikrotik}', 'fetchSecretsForSync')->name('sync-customers.fetch');
+  Route::post('/sync-customers/execute', 'executeSyncCustomers')->name('sync-customers.execute');
+
   // === Kelola Isolir ===
   Route::get('/kelola-isolir', 'kelolaIsolir')->name('kelola-isolir');
   Route::get('/kelola-isolir/data', 'getIsolirData')->name('kelola-isolir.data');

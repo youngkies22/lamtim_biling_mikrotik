@@ -12,7 +12,13 @@ class Lamtim_area extends Model
   protected $fillable = [
     'name',
     'address',
-    'code_area'
+    'code_area',
+    'coordinates',
+    'color',
+  ];
+
+  protected $casts = [
+    'coordinates' => 'array',
   ];
 
   protected function id(): Attribute

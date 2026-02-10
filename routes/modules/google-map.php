@@ -47,4 +47,9 @@ Route::prefix('google-map')->as('google-map.')->controller(GoogleMapController::
     // === IMPORT ===
     Route::get('/unmapped-items', 'getUnmappedItems')->name('unmapped-items');
     Route::post('/set-coordinates', 'setItemCoordinates')->name('set-coordinates');
+
+    // === AREA ===
+    Route::post('/area', 'createArea')->name('area.create');
+    Route::put('/area/{id}', 'updateArea')->name('area.update');
+    Route::delete('/area/{id}', 'deleteArea')->name('area.delete');
 });
