@@ -1164,8 +1164,13 @@ function loadMapData() {
       const d = res.data;
       clearMap();
 
-      // Server marker
-      if (d.server) addServerMarker(d.server);
+      // Server marker + center map ke server saat pertama buka
+      if (d.server) {
+        addServerMarker(d.server);
+        if (!localStorage.getItem('mapState')) {
+          map.setView([d.server.lat, d.server.lng], 15);
+        }
+      }
 
       // Device markers
       (d.olts || []).forEach(o => addDeviceMarker('olt', o));
@@ -1282,6 +1287,7 @@ function buildPopupContent(type, d) {
     html += `<h6 class="mb-2"><i class="mdi ${isFull ? 'mdi-close-network' : 'mdi-router-network'} me-1" style="color:${isFull ? '#f44336' : '#ff9800'}"></i>${d.nama} ${isFull ? '<span class="badge bg-danger" style="font-size:10px;">PORT PENUH</span>' : ''}</h6>`;
     html += `<table class="table table-sm mb-0" style="font-size:12px;">`;
     html += row('Kode', d.kode);
+    if (d.odc_parent_nama) html += row('Parent ODC', `<span class="badge bg-label-warning">${d.odc_parent_nama}</span>`);
     html += row('Parent OLT', d.olt_nama || '-');
     html += row('Total Port', d.port || 0);
     html += row('Terpakai', used);
@@ -1998,6 +2004,11 @@ function showOLTModal(editData, lat, lng) {
 function showODCModal(editData, lat, lng) {
   const isEdit = !!editData;
   const oltOpts = selectOptions.olts.map(o => `<option value="${o.id}" ${isEdit && editData.idOlt==o.id ? 'selected' : ''}>${o.nama} (${o.kode})</option>`).join('');
+  // Parent ODC options: exclude self when editing
+  const odcParentOpts = selectOptions.odcs
+    .filter(o => !isEdit || o.id != editData.id)
+    .map(o => `<option value="${o.id}" ${isEdit && editData.idOdc==o.id ? 'selected' : ''}>${o.nama} (${o.kode})</option>`).join('');
+  const hasParentOdc = isEdit && editData.idOdc;
   Swal.fire({
     title: `<i class="mdi mdi-router-network me-2" style="color:#ff9800"></i>${isEdit ? 'Edit' : 'Tambah'} ODC`,
     html: `
@@ -2007,8 +2018,11 @@ function showODCModal(editData, lat, lng) {
           <div class="col-md-6"><label class="form-label">Kode <span class="text-danger">*</span></label><input type="text" id="s-kode" class="form-control" value="${isEdit ? editData.kode : ''}" placeholder="ODC-01"></div>
           <div class="col-md-6"><label class="form-label">Total Port</label><input type="number" id="s-port" class="form-control" min="0" value="${isEdit ? (editData.port || '') : ''}"></div>
           <div class="col-md-6"><label class="form-label">Port OLT</label><input type="number" id="s-portOlt" class="form-control" min="0" value="${isEdit ? (editData.portOlt || '') : ''}"></div>
-          <div class="col-12"><label class="form-label">Parent OLT</label>
-            <select id="s-idOlt" class="form-select"><option value="">-- Pilih OLT --</option>${oltOpts}</select>
+          <div class="col-md-6"><label class="form-label">Parent ODC</label>
+            <select id="s-idOdc" class="form-select"><option value="">-- Langsung ke OLT --</option>${odcParentOpts}</select>
+          </div>
+          <div class="col-md-6"><label class="form-label">Parent OLT</label>
+            <select id="s-idOlt" class="form-select" ${hasParentOdc ? 'disabled' : ''}><option value="">-- Pilih OLT --</option>${oltOpts}</select>
           </div>
           <div class="col-md-6"><label class="form-label">Latitude</label><input type="text" id="s-lat" class="form-control" value="${lat || (isEdit ? editData.lat : '')}" readonly></div>
           <div class="col-md-6"><label class="form-label">Longitude</label><input type="text" id="s-lng" class="form-control" value="${lng || (isEdit ? editData.lng : '')}" readonly></div>
@@ -2022,15 +2036,30 @@ function showODCModal(editData, lat, lng) {
     cancelButtonText: '<i class="mdi mdi-close me-1"></i>Batal',
     customClass: { confirmButton: 'btn btn-primary me-2', cancelButton: 'btn btn-label-secondary' },
     buttonsStyling: false,
+    didOpen: () => {
+      // When parent ODC selected, disable OLT dropdown (connection via parent ODC)
+      const odcSel = document.getElementById('s-idOdc');
+      const oltSel = document.getElementById('s-idOlt');
+      odcSel.addEventListener('change', function() {
+        if (this.value) {
+          oltSel.disabled = true;
+          oltSel.value = '';
+        } else {
+          oltSel.disabled = false;
+        }
+      });
+    },
     preConfirm: () => {
       const nama = document.getElementById('s-nama').value.trim();
       const kode = document.getElementById('s-kode').value.trim();
       if (!nama || !kode) { Swal.showValidationMessage('Nama dan Kode wajib diisi'); return false; }
+      const idOdc = document.getElementById('s-idOdc').value || null;
       return {
         nama, kode,
         port: parseInt(document.getElementById('s-port').value) || 0,
         portOlt: parseInt(document.getElementById('s-portOlt').value) || null,
         idOlt: document.getElementById('s-idOlt').value || null,
+        idOdc: idOdc ? parseInt(idOdc) : null,
         latitude: parseFloat(document.getElementById('s-lat').value),
         longitude: parseFloat(document.getElementById('s-lng').value),
         keterangan: document.getElementById('s-keterangan').value.trim() || null,

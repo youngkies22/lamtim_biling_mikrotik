@@ -177,7 +177,7 @@ class GoogleMapController extends Controller
 
     public function getODC($id)
     {
-        $odc = Lamtim_odc::with('olt:id,nama')->find($id);
+        $odc = Lamtim_odc::with(['olt:id,nama', 'parentOdc:id,nama'])->find($id);
         if (!$odc) return response()->json(['success' => false, 'message' => 'ODC tidak ditemukan'], 404);
 
         return response()->json([
@@ -191,6 +191,8 @@ class GoogleMapController extends Controller
                 'portOlt' => $odc->portOlt,
                 'idOlt' => $odc->idOlt,
                 'olt_nama' => $odc->olt->nama ?? null,
+                'idOdc' => $odc->idOdc,
+                'odc_parent_nama' => $odc->parentOdc->nama ?? null,
                 'lat' => $odc->latitude,
                 'lng' => $odc->longitude,
                 'status' => $odc->status,
@@ -208,12 +210,22 @@ class GoogleMapController extends Controller
             'longitude' => 'required|numeric',
             'port' => 'nullable|integer|min:0',
             'idOlt' => 'nullable|integer|exists:lamtim_olts,id',
+            'idOdc' => 'nullable|integer|exists:lamtim_odcs,id',
             'portOlt' => 'nullable|integer|min:0',
             'keterangan' => 'nullable|string',
         ]);
 
         try {
             $port = $validated['port'] ?? 0;
+            $idOlt = $validated['idOlt'] ?? null;
+            $idOdc = $validated['idOdc'] ?? null;
+
+            // Kalau parent ODC dipilih tapi idOlt kosong, inherit idOlt dari parent
+            if ($idOdc && !$idOlt) {
+                $parentOdc = Lamtim_odc::find($idOdc);
+                $idOlt = $parentOdc ? $parentOdc->idOlt : null;
+            }
+
             $odc = Lamtim_odc::create([
                 'nama' => $validated['nama'],
                 'kode' => $validated['kode'],
@@ -221,7 +233,8 @@ class GoogleMapController extends Controller
                 'longitude' => $validated['longitude'],
                 'port' => $port,
                 'portSisa' => $port,
-                'idOlt' => $validated['idOlt'] ?? null,
+                'idOlt' => $idOlt,
+                'idOdc' => $idOdc,
                 'portOlt' => $validated['portOlt'] ?? null,
                 'keterangan' => $validated['keterangan'] ?? null,
             ]);
@@ -242,9 +255,26 @@ class GoogleMapController extends Controller
             'longitude' => 'nullable|numeric',
             'port' => 'nullable|integer|min:0',
             'idOlt' => 'nullable|integer',
+            'idOdc' => 'nullable|integer',
             'portOlt' => 'nullable|integer|min:0',
             'keterangan' => 'nullable|string',
         ]);
+
+        // Circular reference check
+        if (isset($validated['idOdc']) && $validated['idOdc']) {
+            if ($validated['idOdc'] == $id) {
+                return response()->json(['success' => false, 'message' => 'ODC tidak bisa menjadi parent dirinya sendiri'], 422);
+            }
+            if ($this->odcWouldCreateLoop($id, $validated['idOdc'])) {
+                return response()->json(['success' => false, 'message' => 'Tidak bisa set parent, akan menyebabkan loop hierarki'], 422);
+            }
+        }
+
+        // Kalau parent ODC dipilih tapi idOlt kosong, inherit idOlt dari parent
+        if (!empty($validated['idOdc']) && empty($validated['idOlt'])) {
+            $parentOdc = Lamtim_odc::find($validated['idOdc']);
+            if ($parentOdc) $validated['idOlt'] = $parentOdc->idOlt;
+        }
 
         if (isset($validated['port'])) {
             $currentUsed = $odc->port - $odc->portSisa;
@@ -253,6 +283,20 @@ class GoogleMapController extends Controller
 
         $odc->update($validated);
         return response()->json(['success' => true, 'message' => 'ODC berhasil diupdate', 'data' => $odc]);
+    }
+
+    private function odcWouldCreateLoop($odcId, $parentId): bool
+    {
+        $visited = [];
+        $current = $parentId;
+        while ($current) {
+            if ($current == $odcId) return true;
+            if (in_array($current, $visited)) return true;
+            $visited[] = $current;
+            $parent = Lamtim_odc::find($current);
+            $current = $parent ? $parent->idOdc : null;
+        }
+        return false;
     }
 
     public function deleteODC($id)

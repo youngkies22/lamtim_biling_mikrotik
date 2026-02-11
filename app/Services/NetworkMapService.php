@@ -60,7 +60,7 @@ class NetworkMapService
 
     public function getOdcs(): array
     {
-        return Lamtim_odc::with('olt:id,nama,latitude,longitude')
+        return Lamtim_odc::with(['olt:id,nama,latitude,longitude', 'parentOdc:id,nama,latitude,longitude'])
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->get()
@@ -74,6 +74,8 @@ class NetworkMapService
                     'portOlt' => $odc->portOlt,
                     'idOlt' => $odc->idOlt,
                     'olt_nama' => $odc->olt->nama ?? null,
+                    'idOdc' => $odc->idOdc,
+                    'odc_parent_nama' => $odc->parentOdc->nama ?? null,
                     'lat' => (float) $odc->latitude,
                     'lng' => (float) $odc->longitude,
                     'route_waypoints' => $odc->route_waypoints,
@@ -176,11 +178,12 @@ class NetworkMapService
             ];
         }
 
-        // OLT -> ODC routes
+        // OLT -> ODC routes (hanya ODC root yang langsung ke OLT, bukan child ODC)
         $odcs = Lamtim_odc::with('olt')
             ->whereNotNull('latitude')
             ->whereNotNull('longitude')
             ->whereNotNull('idOlt')
+            ->whereNull('idOdc')
             ->get();
 
         foreach ($odcs as $odc) {
@@ -193,6 +196,30 @@ class NetworkMapService
                     'color' => '#ff9800',
                     'coords' => $this->buildRouteCoords(
                         $odc->olt->latitude, $odc->olt->longitude,
+                        $odc->latitude, $odc->longitude,
+                        $odc->route_waypoints
+                    ),
+                ];
+            }
+        }
+
+        // ODC -> ODC routes (estafet, child ODC ke parent ODC)
+        $odcEstafet = Lamtim_odc::with('parentOdc')
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->whereNotNull('idOdc')
+            ->get();
+
+        foreach ($odcEstafet as $odc) {
+            if ($odc->parentOdc && $odc->parentOdc->latitude && $odc->parentOdc->longitude) {
+                $routes[] = [
+                    'type' => 'odc_to_odc',
+                    'from_id' => $odc->idOdc,
+                    'to_id' => $odc->id,
+                    'to_type' => 'odc',
+                    'color' => '#ff9800',
+                    'coords' => $this->buildRouteCoords(
+                        $odc->parentOdc->latitude, $odc->parentOdc->longitude,
                         $odc->latitude, $odc->longitude,
                         $odc->route_waypoints
                     ),
