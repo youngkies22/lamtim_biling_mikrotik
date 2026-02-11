@@ -47,6 +47,13 @@ class User extends Authenticatable
     'password' => 'hashed',
   ];
 
+  // ===== Role Helpers =====
+  public function isSuperAdmin() { return (int) $this->idRole === 1; }
+  public function isAdmin()      { return (int) $this->idRole === 2; }
+  public function isBendahara()  { return (int) $this->idRole === 3; }
+  public function isTeknisi()    { return (int) $this->idRole === 4; }
+  public function hasRole(...$roles) { return in_array((int) $this->idRole, $roles); }
+
   public function user_detail()
   {
     return $this->hasOne(Lamtim_user_details::class, 'idUser', 'id');

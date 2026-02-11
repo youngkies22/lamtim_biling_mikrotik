@@ -1,10 +1,10 @@
 <?php
 // Variables
 return [
-  "creatorName" => "Pixinvent",
-  "creatorUrl" => "https://pixinvent.com",
-  "templateName" => "Materialize",
-  "templateSuffix" => "Materialize - Bootstrap 5 HTML Laravel Admin Template",
+  "creatorName" => "Lamtim Net",
+  "creatorUrl" => "#",
+  "templateName" => "Lamtim Billing",
+  "templateSuffix" => "Lamtim Billing - Sistem Manajemen ISP",
   "templateVersion" => "1.3.0",
   "templateFree" => false,
   "templateDescription" => "Materialize – is the most developer friendly & highly customizable Admin Dashboard Template.",

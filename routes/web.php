@@ -16,22 +16,33 @@ Route::post('/auth/logout', [LoginBasic::class, 'logout'])->name('logout');
 
 // Hanya bisa diakses kalau SUDAH login
 Route::middleware(['auth'])->group(function () {
-  // 🏠 Halaman utama
   Route::get('/', [HomePage::class, 'index'])->name('pages-home');
-  // server
-  require __DIR__ . '/modules/mikrotik.php';
-  require __DIR__ . '/modules/olt.php';
-  require __DIR__ . '/modules/odc.php';
-  require __DIR__ . '/modules/odp.php';
-  // paket kategori
-  require __DIR__ . '/modules/kategori.php';
-  require __DIR__ . '/modules/paket.php';
-  require __DIR__ . '/modules/mapping.php'; //mapping
-  require __DIR__ . '/modules/google-map.php'; //google map
-  require __DIR__ . '/modules/user.php'; // pelanggan
-  require __DIR__ . '/modules/select.php';
-  require __DIR__ . '/modules/area.php';
 
-  //tagihan transaksi
-  require __DIR__ . '/modules/tagihan.php';
+  // Super Admin + Admin only (role 1,2) — server management, internet packages
+  Route::middleware('role:1,2')->group(function () {
+    require __DIR__ . '/modules/mikrotik.php';
+    require __DIR__ . '/modules/olt.php';
+    require __DIR__ . '/modules/kategori.php';
+    require __DIR__ . '/modules/paket.php';
+  });
+
+  // Admin + Teknisi (role 1,2,4) — network devices, mapping, pelanggan CRUD
+  Route::middleware('role:1,2,4')->group(function () {
+    require __DIR__ . '/modules/odc.php';
+    require __DIR__ . '/modules/odp.php';
+    require __DIR__ . '/modules/google-map.php';
+    require __DIR__ . '/modules/mapping.php';
+    require __DIR__ . '/modules/area.php';
+  });
+
+  // Admin + Teknisi + Bendahara (role 1,2,3,4) — pelanggan (bendahara read-only via controller)
+  Route::middleware('role:1,2,3,4')->group(function () {
+    require __DIR__ . '/modules/user.php';
+    require __DIR__ . '/modules/select.php';
+  });
+
+  // Admin + Bendahara (role 1,2,3) — billing/tagihan
+  Route::middleware('role:1,2,3')->group(function () {
+    require __DIR__ . '/modules/tagihan.php';
+  });
 });

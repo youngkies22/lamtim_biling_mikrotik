@@ -177,11 +177,13 @@
                 <div><i class="mdi mdi-calendar me-1"></i>{{ $foto->created_at->format('d-m-Y H:i') }}</div>
                 @endif
               </div>
+              @if(auth()->user()->hasRole(1,2,4))
               <div class="mt-2">
                 <button class="btn btn-sm btn-danger btn-delete-foto" data-id="{{ encrypt($foto->id) }}">
                   <i class="mdi mdi-delete"></i> Hapus
                 </button>
               </div>
+              @endif
             </div>
           </div>
         @endforeach

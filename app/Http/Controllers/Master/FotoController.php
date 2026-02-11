@@ -118,6 +118,7 @@ class FotoController extends Controller
      */
     public function destroy(string $id)
     {
+        if (auth()->user()->isBendahara()) abort(403, 'Akses ditolak');
         try {
             $fotoId = decrypt($id);
             $foto = Lamtim_foto::findOrFail($fotoId);

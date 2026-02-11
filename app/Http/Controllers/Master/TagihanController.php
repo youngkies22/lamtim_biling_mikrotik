@@ -55,7 +55,34 @@ class TagihanController extends Controller
 
   public function generate()
   {
-    return view('content.tagihan.generate');
+    $currentMonth = (int) date('n');
+    $currentYear  = (int) date('Y');
+
+    $pelangganAktif = DB::table('users')
+      ->where('isActive', 1)
+      ->whereIn('idRole', [5])
+      ->count();
+
+    $sudahGenerate = DB::table('lamtim_tagihans')
+      ->where('bulan', $currentMonth)
+      ->where('tahun', $currentYear)
+      ->count();
+
+    $belumBayar = DB::table('lamtim_tagihans')
+      ->where('bulan', $currentMonth)
+      ->where('tahun', $currentYear)
+      ->where('statusBayar', 0)
+      ->count();
+
+    $sudahBayar = DB::table('lamtim_tagihans')
+      ->where('bulan', $currentMonth)
+      ->where('tahun', $currentYear)
+      ->where('statusBayar', 1)
+      ->count();
+
+    $stats = compact('pelangganAktif', 'sudahGenerate', 'belumBayar', 'sudahBayar');
+
+    return view('content.tagihan.generate', compact('stats'));
   }
 
   public function generateTagihanBulanan()

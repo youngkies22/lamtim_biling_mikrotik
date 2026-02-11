@@ -83,8 +83,7 @@ $navbarDetached = ($navbarDetached ?? '');
             </a>
             <ul class="dropdown-menu dropdown-menu-end">
               <li>
-                <a class="dropdown-item"
-                  href="{{ Route::has('profile.show') ? route('profile.show') : 'javascript:void(0);' }}">
+                <a class="dropdown-item" href="javascript:void(0);">
                   <div class="d-flex">
                     <div class="flex-shrink-0 me-3">
                       <div class="avatar avatar-online">
@@ -96,42 +95,21 @@ $navbarDetached = ($navbarDetached ?? '');
                         @if (Auth::check())
                         {{ Auth::user()->name }}
                         @else
-                        John Doe
+                        -
                         @endif
                       </span>
-                      <small class="text-muted">Admin</small>
+                      <small class="text-muted">
+                        @if (Auth::check())
+                          @php
+                            $roleNames = [1 => 'Super Admin', 2 => 'Admin', 3 => 'Bendahara', 4 => 'Teknisi'];
+                          @endphp
+                          {{ $roleNames[Auth::user()->idRole] ?? 'User' }}
+                        @endif
+                      </small>
                     </div>
                   </div>
                 </a>
               </li>
-              <li>
-                <div class="dropdown-divider"></div>
-              </li>
-              <li>
-                <a class="dropdown-item" href="">
-                  <i class="mdi mdi-account-outline me-2"></i>
-                  <span class="align-middle">My Profile</span>
-                </a>
-              </li>
-
-              <li>
-                <a class="dropdown-item" href="javascript:void(0);">
-                  <i class="mdi mdi-credit-card-outline me-2"></i>
-                  <span class="align-middle">Billing</span>
-                </a>
-              </li>
-              @if (Auth::User())
-              <li>
-                <div class="dropdown-divider"></div>
-              </li>
-              <li>
-                <h6 class="dropdown-header">Manage Team</h6>
-              </li>
-              <li>
-                <div class="dropdown-divider"></div>
-              </li>
-
-              @endif
               <li>
                 <div class="dropdown-divider"></div>
               </li>

@@ -3,7 +3,7 @@
   <div class="container d-flex h-100">
     <ul class="menu-inner">
 
-      <!-- Home -->
+      <!-- Home - semua role -->
       <li class="menu-item">
         <a href="/" class="menu-link">
           <i class="menu-icon tf-icons mdi mdi-home-outline"></i>
@@ -11,13 +11,16 @@
         </a>
       </li>
 
-      <!-- Page 2 -->
+      <!-- SERVER - Super Admin(1), Admin(2), Teknisi(4) -->
+      @if(auth()->user()->hasRole(1,2,4))
       <li class="menu-item menu-dropdown">
         <a href="javascript:void(0);" class="menu-link menu-toggle">
           <i class="menu-icon tf-icons mdi mdi-file-document-outline"></i>
           <div>SERVER</div>
         </a>
         <ul class="menu-sub">
+          {{-- Mikrotik submenu - hanya Super Admin + Admin --}}
+          @if(auth()->user()->hasRole(1,2))
           <li class="menu-item menu-dropdown">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
               <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
@@ -56,12 +59,17 @@
               </li>
             </ul>
           </li>
+          @endif
+          {{-- OLT - hanya Super Admin + Admin --}}
+          @if(auth()->user()->hasRole(1,2))
           <li class="menu-item">
             <a href="{{ route('olt.index') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
               <div>OLT</div>
             </a>
           </li>
+          @endif
+          {{-- ODC, ODP, Map - Admin + Teknisi --}}
           <li class="menu-item">
             <a href="{{ route('odc.index') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-circle-medium mdi-20px"></i>
@@ -82,24 +90,34 @@
           </li>
         </ul>
       </li>
+      @endif
+
+      <!-- PELANGGAN - Super Admin(1), Admin(2), Bendahara(3), Teknisi(4) -->
+      @if(auth()->user()->hasRole(1,2,3,4))
       <li class="menu-item menu-dropdown">
         <a href="javascript:void(0);" class="menu-link menu-toggle">
-          <i class="menu-icon tf-icons  mdi mdi-badge-account-outline"></i>
+          <i class="menu-icon tf-icons mdi mdi-badge-account-outline"></i>
           <div>PELANGGAN</div>
         </a>
         <ul class="menu-sub">
+          {{-- ADD - hanya Admin + Teknisi (bukan Bendahara) --}}
+          @if(auth()->user()->hasRole(1,2,4))
           <li class="menu-item">
             <a href="{{ route('user.create') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-account-multiple-plus mdi-20px"></i>
               <div>ADD</div>
             </a>
           </li>
+          @endif
+          {{-- LIST - semua role --}}
           <li class="menu-item">
             <a href="{{ route('user.index') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-account-group mdi-20px"></i>
               <div>LIST</div>
             </a>
           </li>
+          {{-- MAPPING - hanya Admin + Teknisi --}}
+          @if(auth()->user()->hasRole(1,2,4))
           <li class="menu-item">
             <a href="{{ route('user.mapping') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-account-key mdi-20px"></i>
@@ -112,15 +130,22 @@
               <div>LIHAT MAP</div>
             </a>
           </li>
+          @endif
+          {{-- AREA - hanya Admin + Teknisi --}}
+          @if(auth()->user()->hasRole(1,2,4))
           <li class="menu-item">
             <a href="{{ route('area.index') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-map-marker-outline mdi-20px"></i>
               <div>AREA</div>
             </a>
           </li>
-
+          @endif
         </ul>
       </li>
+      @endif
+
+      <!-- INTERNET - Super Admin(1), Admin(2) only -->
+      @if(auth()->user()->hasRole(1,2))
       <li class="menu-item menu-dropdown">
         <a href="javascript:void(0);" class="menu-link menu-toggle">
           <i class="menu-icon tf-icons mdi mdi-access-point-network"></i>
@@ -141,9 +166,13 @@
           </li>
         </ul>
       </li>
+      @endif
+
+      <!-- TAGIHAN - Super Admin(1), Admin(2), Bendahara(3) -->
+      @if(auth()->user()->hasRole(1,2,3))
       <li class="menu-item menu-dropdown">
         <a href="javascript:void(0);" class="menu-link menu-toggle">
-          <i class="menu-icon tf-icons mdi mdi-access-point-network"></i>
+          <i class="menu-icon tf-icons mdi mdi-cash-multiple"></i>
           <div>TAGIHAN</div>
         </a>
         <ul class="menu-sub">
@@ -167,24 +196,7 @@
           </li>
         </ul>
       </li>
-
-
-
-      <!-- Login -->
-      {{-- <li class="menu-item">
-        <a href="/auth/login-basic" class="menu-link" target="_blank">
-          <i class="menu-icon tf-icons mdi mdi-login"></i>
-          <div>Login</div>
-        </a>
-      </li>
-
-      <!-- Register -->
-      <li class="menu-item">
-        <a href="/auth/register-basic" class="menu-link" target="_blank">
-          <i class="menu-icon tf-icons mdi mdi-account-outline"></i>
-          <div>Register</div>
-        </a>
-      </li> --}}
+      @endif
 
     </ul>
   </div>

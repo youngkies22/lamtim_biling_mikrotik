@@ -35,18 +35,25 @@
             orderable: false,
             searchable: false,
             render: function (data, type, row) {
+              let actions = '';
+              @if(auth()->user()->hasRole(1,2,4))
+              actions += `<a class="dropdown-item fw-bold" href="/user/${data}/edit">
+                    <i class="mdi mdi-pencil-outline me-1"></i> Edit
+                  </a>`;
+              @endif
+              @if(auth()->user()->hasRole(1,2))
+              actions += `<a class="dropdown-item btn-delete text-danger fw-bold" href="javascript:void(0);" data-id="${data}">
+                    <i class="mdi mdi-trash-can-outline me-1"></i> Delete
+                  </a>`;
+              @endif
+              if (!actions) return '-';
               return `
               <div class="dropdown">
                 <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
                   <i class="mdi mdi-dots-vertical"></i>
                 </button>
                 <div class="dropdown-menu">
-                  <a class="dropdown-item fw-bold" href="/user/${data}/edit">
-                    <i class="mdi mdi-pencil-outline me-1"></i> Edit
-                  </a>
-                  <a class="dropdown-item btn-delete text-danger fw-bold" href="javascript:void(0);" data-id="${data}">
-                    <i class="mdi mdi-trash-can-outline me-1"></i> Delete
-                  </a>
+                  ${actions}
                 </div>
               </div>
             `;
