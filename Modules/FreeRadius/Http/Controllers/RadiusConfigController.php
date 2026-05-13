@@ -71,53 +71,59 @@ class RadiusConfigController extends Controller
             'binary_radclient' => false,
             'service_active'   => false,
             'version'          => null,
+            'exec_available'   => false,
         ];
+
+        // Cek apakah fungsi shell_exec/exec tersedia (sering di-disable di hosting)
+        $canExec = function_exists('shell_exec') && !in_array('shell_exec', explode(',', ini_get('disable_functions') ?? ''));
+        $result['exec_available'] = $canExec;
+
+        if (!$canExec) {
+            return $result;
+        }
 
         // Deteksi OS
         $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
 
-        // Cek binary radiusd/freeradius
         try {
-            if ($isWindows) {
-                // Di Windows, cek via where
-                $whichRadiusd = trim((string) \shell_exec('where radiusd.exe 2>NUL || where freeradius.exe 2>NUL'));
-            } else {
-                $whichRadiusd = trim((string) \shell_exec('which radiusd 2>/dev/null || which freeradius 2>/dev/null'));
-            }
+            $whichCmd = $isWindows
+                ? 'where radiusd.exe 2>NUL || where freeradius.exe 2>NUL'
+                : 'which radiusd 2>/dev/null || which freeradius 2>/dev/null';
+            $whichRadiusd = trim((string) \shell_exec($whichCmd));
+
             if ($whichRadiusd) {
                 $result['binary_radiusd'] = true;
+
                 if (!$isWindows) {
-                    $version = @\shell_exec('radiusd -v 2>/dev/null || freeradius -v 2>/dev/null');
+                    $version = \shell_exec('radiusd -v 2>/dev/null || freeradius -v 2>/dev/null');
                     if ($version) {
                         preg_match('/FreeRADIUS Version (\S+)/', $version, $m);
                         $result['version'] = $m[1] ?? trim(explode("\n", $version)[0]);
                     }
                 }
             }
-        } catch (\Exception $e) {
-            // Abaikan error, anggap tidak terinstall
-        }
-
-        // Cek binary radclient
-        try {
-            if ($isWindows) {
-                $whichRadclient = trim((string) \shell_exec('where radclient.exe 2>NUL'));
-            } else {
-                $whichRadclient = trim((string) \shell_exec('which radclient 2>/dev/null'));
-            }
-            if ($whichRadclient) {
-                $result['binary_radclient'] = true;
-            }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             // Abaikan error
         }
 
-        // Cek status service (hanya di Linux)
+        try {
+            $whichCmd = $isWindows
+                ? 'where radclient.exe 2>NUL'
+                : 'which radclient 2>/dev/null';
+            $whichRadclient = trim((string) \shell_exec($whichCmd));
+
+            if ($whichRadclient) {
+                $result['binary_radclient'] = true;
+            }
+        } catch (\Throwable $e) {
+            // Abaikan error
+        }
+
         if (!$isWindows) {
             try {
-                $statusOutput = @\shell_exec('systemctl is-active freeradius 2>/dev/null || systemctl is-active radiusd 2>/dev/null');
+                $statusOutput = \shell_exec('systemctl is-active freeradius 2>/dev/null || systemctl is-active radiusd 2>/dev/null');
                 $result['service_active'] = trim((string) $statusOutput) === 'active';
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 // Service check tidak tersedia
             }
         }

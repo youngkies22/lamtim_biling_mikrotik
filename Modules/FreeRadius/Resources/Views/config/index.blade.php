@@ -22,6 +22,14 @@
         method: 'POST',
         headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
         success: function(response) {
+          if (response.exec_available === false) {
+            $('#radiusd-status').html('<span class="badge bg-label-warning fs-6 px-3 py-2">Tidak Dapat Dicek</span>');
+            $('#radclient-status').html('<span class="badge bg-label-warning fs-6 px-3 py-2">Tidak Dapat Dicek</span>');
+            $('#service-status').html('<span class="badge bg-label-warning fs-6 px-3 py-2">Tidak Dapat Dicek</span>');
+            $('#radius-version').text('-');
+            toastr.warning('Fungsi shell_exec tidak tersedia di server ini.');
+            return;
+          }
           $('#radiusd-status').html(response.binary_radiusd
             ? '<span class="badge bg-label-success">Terinstall</span>'
             : '<span class="badge bg-label-danger">Tidak Terinstall</span>');
@@ -57,11 +65,19 @@
         </button>
       </div>
       <div class="card-body">
+        @if(!$serverCheck['exec_available'])
+        <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+          <i class="mdi mdi-alert-circle-outline me-2 mdi-24px"></i>
+          <div>Fungsi <code>shell_exec</code> tidak tersedia di server ini. Status tidak dapat dicek secara otomatis.</div>
+        </div>
+        @endif
         <ul class="list-unstyled mb-0">
           <li class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
             <span><i class="mdi mdi-console me-2 text-muted"></i> Binary radiusd</span>
             <span id="radiusd-status">
-              @if($serverCheck['binary_radiusd'])
+              @if(!$serverCheck['exec_available'])
+                <span class="badge bg-label-warning fs-6 px-3 py-2">Tidak Dapat Dicek</span>
+              @elseif($serverCheck['binary_radiusd'])
                 <span class="badge bg-label-success fs-6 px-3 py-2">Terinstall</span>
               @else
                 <span class="badge bg-label-danger fs-6 px-3 py-2">Tidak Terinstall</span>
@@ -71,7 +87,9 @@
           <li class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
             <span><i class="mdi mdi-console me-2 text-muted"></i> Binary radclient</span>
             <span id="radclient-status">
-              @if($serverCheck['binary_radclient'])
+              @if(!$serverCheck['exec_available'])
+                <span class="badge bg-label-warning fs-6 px-3 py-2">Tidak Dapat Dicek</span>
+              @elseif($serverCheck['binary_radclient'])
                 <span class="badge bg-label-success fs-6 px-3 py-2">Terinstall</span>
               @else
                 <span class="badge bg-label-danger fs-6 px-3 py-2">Tidak Terinstall</span>
@@ -81,7 +99,9 @@
           <li class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
             <span><i class="mdi mdi-run me-2 text-muted"></i> Service</span>
             <span id="service-status">
-              @if($serverCheck['service_active'])
+              @if(!$serverCheck['exec_available'])
+                <span class="badge bg-label-warning fs-6 px-3 py-2">Tidak Dapat Dicek</span>
+              @elseif($serverCheck['service_active'])
                 <span class="badge bg-label-success fs-6 px-3 py-2">Berjalan</span>
               @else
                 <span class="badge bg-label-danger fs-6 px-3 py-2">Tidak Berjalan</span>
@@ -90,7 +110,7 @@
           </li>
           <li class="d-flex justify-content-between align-items-center">
             <span><i class="mdi mdi-tag-text-outline me-2 text-muted"></i> Versi</span>
-            <span id="radius-version" class="fw-bold fs-5">{{ $serverCheck['version'] ?? '-' }}</span>
+            <span id="radius-version" class="fw-bold fs-5">{{ $serverCheck['exec_available'] ? ($serverCheck['version'] ?? '-') : '-' }}</span>
           </li>
         </ul>
       </div>
