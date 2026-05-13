@@ -9,7 +9,7 @@
     {
       "name": "Server",
       "icon": "menu-icon tf-icons mdi mdi-server-network",
-      "slug": ["mikrotik", "olt", "odc", "odp"],
+      "slug": ["mikrotik", "olt", "odc", "odp", "radius"],
       "submenu": [
         {
           "url": "/mikrotik",
@@ -40,11 +40,69 @@
           "url": "/mikrotik/pppoe-manage",
           "name": "Kelola PPPoE",
           "slug": "mikrotik.pppoe-manage"
+        }
+      ]
+    },
+    {
+      "name": "FreeRADIUS",
+      "icon": "menu-icon tf-icons mdi mdi-radius-outline",
+      "slug": "radius",
+      "submenu": [
+        {
+          "name": "Pelanggan",
+          "icon": "menu-icon tf-icons mdi mdi-account-group",
+          "slug": "radius.user",
+          "submenu": [
+            {
+              "url": "/radius/users?status=Semua",
+              "name": "Semua Pelanggan",
+              "icon": "menu-icon tf-icons mdi mdi-circle-small",
+              "slug": "radius.user.index"
+            },
+            {
+              "url": "/radius/users?status=Online",
+              "name": "Online",
+              "icon": "menu-icon tf-icons mdi mdi-circle-small",
+              "slug": "radius.user.online"
+            },
+            {
+              "url": "/radius/users?status=Offline",
+              "name": "Offline",
+              "icon": "menu-icon tf-icons mdi mdi-circle-small",
+              "slug": "radius.user.offline"
+            }
+          ]
         },
         {
-          "url": "/mikrotik/sync-customers",
-          "name": "Sinkron Pelanggan",
-          "slug": "mikrotik.sync-customers"
+          "url": "/radius/profiles",
+          "name": "Paket",
+          "icon": "menu-icon tf-icons mdi mdi-package-variant",
+          "slug": "radius.profile.index"
+        },
+        {
+          "url": "/radius/sync",
+          "name": "Sinkronisasi",
+          "icon": "menu-icon tf-icons mdi mdi-sync",
+          "slug": "radius.sync.index"
+        },
+        {
+          "url": "/radius/migration",
+          "name": "Alat Migrasi",
+          "icon": "menu-icon tf-icons mdi mdi-database-import",
+          "slug": "radius.migration.index"
+        }
+      ]
+    },
+    {
+      "name": "Pengaturan Sistem",
+      "icon": "menu-icon tf-icons mdi mdi-cog-outline",
+      "slug": "settings.sync",
+      "submenu": [
+        {
+          "url": "/settings/sync",
+          "name": "Sinkron",
+          "icon": "menu-icon tf-icons mdi mdi-sync-circle",
+          "slug": "settings.sync.index"
         }
       ]
     }

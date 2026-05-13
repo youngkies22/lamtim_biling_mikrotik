@@ -35,3 +35,11 @@
 
 <!-- Page Styles -->
 @yield('page-style')
+
+<style>
+  /* Pindahkan Customizer Toggle ke pojok bawah */
+  .template-customizer-open-btn {
+    top: unset !important;
+    bottom: 20px !important;
+  }
+</style>

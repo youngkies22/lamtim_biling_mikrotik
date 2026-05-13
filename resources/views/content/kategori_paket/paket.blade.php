@@ -32,6 +32,7 @@
         { data: 'kode'},
         { data: 'nama'},
         { data: 'price'},
+        { data: 'speed_limit'},
         { data: 'kategori'},
         { data: 'description'},
         {
@@ -60,8 +61,11 @@
                   <a class="dropdown-item fw-bold btn-edit" href="javascript:void(0);"
                     data-id="${data}" data-nama="${row.nama}" data-description="${row.description}"
                     data-kode="${row.kode}" data-price="${row.price}" data-idkategori="${row.idKategori}"
-                    data-isactive="${row.isActive}"
-                    data-isactive="${row.isActive}">
+                    data-isactive="${row.isActive}" data-speed_limit="${row.speed_limit || ''}"
+                    data-ip_pool="${row.ip_pool || ''}" data-address_list="${row.address_list || ''}"
+                    data-is_burst="${row.is_burst || 0}" data-burst_rate="${row.burst_rate || ''}"
+                    data-burst_threshold="${row.burst_threshold || ''}" data-burst_time="${row.burst_time || ''}"
+                    data-priority="${row.priority || 8}">
                     <i class="mdi mdi-pencil-outline me-1"></i> Edit
                   </a>
                    <a class="dropdown-item btn-delete text-danger fw-bold" href="javascript:void(0);" data-id="${data}">
@@ -243,6 +247,14 @@
       const kode = $(this).data("kode");
       const price = $(this).data("price");
       const description = $(this).data("description");
+      const speed_limit = $(this).data("speed_limit");
+      const is_burst = $(this).data("is_burst");
+      const burst_rate = $(this).data("burst_rate");
+      const burst_threshold = $(this).data("burst_threshold");
+      const burst_time = $(this).data("burst_time");
+      const priority = $(this).data("priority");
+      const ip_pool = $(this).data("ip_pool");
+      const address_list = $(this).data("address_list");
       const isactive = $(this).data("isactive");
       const idkategori = $(this).data("idkategori");
 
@@ -252,6 +264,24 @@
       form.querySelector('[name="kode"]').value = kode;
       form.querySelector('[name="price"]').value = price;
       form.querySelector('[name="description"]').value = description;
+      form.querySelector('[name="speed_limit"]').value = speed_limit;
+      form.querySelector('[name="is_burst"]').value = is_burst;
+      form.querySelector('[name="burst_rate"]').value = burst_rate;
+      form.querySelector('[name="burst_threshold"]').value = burst_threshold;
+      form.querySelector('[name="burst_time"]').value = burst_time;
+      form.querySelector('[name="priority"]').value = priority;
+      
+      // Toggle visibility based on is_burst
+      if (is_burst == 1) {
+          $('#section-burst').show();
+          $('#is_burst').prop('checked', true);
+      } else {
+          $('#section-burst').hide();
+          $('#is_burst').prop('checked', false);
+      }
+
+      form.querySelector('[name="ip_pool"]').value = ip_pool;
+      form.querySelector('[name="address_list"]').value = address_list;
       form.querySelector('[name="isActive"]').value = isactive;
       form.querySelector('[name="idKategori"]').value = idkategori;
 
@@ -272,6 +302,21 @@
       bsOffcanvas.show();
     });
 
+    $(document).on('click', '.btn-speed-pick', function() {
+        const speed = $(this).data('speed');
+        $('#speed_limit').val(speed);
+    });
+
+    $(document).on('change', '#is_burst', function() {
+        if ($(this).is(':checked')) {
+            $('#section-burst').slideDown();
+            $('input[name="is_burst"]').val(1);
+        } else {
+            $('#section-burst').slideUp();
+            $('input[name="is_burst"]').val(0);
+        }
+    });
+
 </script>
 @endsection
 
@@ -290,6 +335,7 @@
           <th>KODE</th>
           <th>NAMA</th>
           <th>HARGA</th>
+          <th>LIMIT</th>
           <th>KATEGORI</th>
           <th>KETERANGAN</th>
           <th>STATUS</th>
@@ -301,7 +347,7 @@
   </div>
 </div>
 <!-- Modal to add new record -->
-<div class="offcanvas offcanvas-end" id="add-new-record">
+<div class="offcanvas offcanvas-end" id="add-new-record" style="width: 650px !important;">
   <div class="offcanvas-header border-bottom">
     <h5 class="offcanvas-title" id="exampleModalLabel">New Data</h5>
     <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
@@ -309,77 +355,222 @@
   <div class="offcanvas-body flex-grow-1">
     <form class="add-new-record pt-0 row g-3" id="form-add-new-record" onsubmit="return false">
       <div class="col-sm-12">
-        <div class="input-group input-group-merge">
-          <span id="basicSalary2" class="input-group-text"><i class='mdi mdi-archive-settings'></i></span>
-          <div class="form-floating form-floating-outline">
-            <select name="idKategori" class="form-select">
-              @foreach (Helper::getKategori() as $val)
-              <option value="{{ $val->id }}">{{ $val->nama }}</option>
-              @endforeach
-            </select>
-            <label for="basicSalary">Paket</label>
+        <label class="form-label fw-bold"><i class="mdi mdi-information-outline me-1"></i>Informasi Dasar</label>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="form-floating form-floating-outline">
+              <select name="idKategori" class="form-select border-primary">
+                @foreach (Helper::getKategori() as $val)
+                <option value="{{ $val->id }}">{{ $val->nama }}</option>
+                @endforeach
+              </select>
+              <label>Kategori Paket</label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-floating form-floating-outline">
+              <input type="text" id="kode" name="kode" class="form-control border-primary" autocomplete="off" placeholder="KODE" />
+              <label>KODE PAKET (Radius Group)</label>
+            </div>
+          </div>
+          <div class="col-md-8">
+            <div class="form-floating form-floating-outline">
+              <input type="text" id="nama" name="nama" class="form-control" autocomplete="off" placeholder="NAMA" />
+              <label>NAMA PAKET</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-floating form-floating-outline">
+              <input type="number" id="price" name="price" class="form-control" autocomplete="off" placeholder="HARGA" />
+              <label>HARGA (Rp)</label>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="col-sm-12">
-        <div class="input-group input-group-merge">
-          <span id="basicFullname2" class="input-group-text"><i class="mdi mdi-account-outline"></i></span>
-          <div class="form-floating form-floating-outline">
-            <input type="text" id="nama" class="form-control dt-full-name" name="nama" autocomplete="off" />
-            <label for="basicFullname">NAMA</label>
-          </div>
+      <div class="col-sm-12 mt-4">
+        <label class="form-label fw-bold text-primary"><i class="mdi mdi-tune-vertical me-1"></i>Konfigurasi Teknis (MikroTik)</label>
+        <div class="card bg-label-primary border-0 shadow-none mb-3">
+            <div class="card-body p-3">
+                <div class="row g-3">
+                    <div class="col-md-12">
+                        <div class="form-floating form-floating-outline">
+                          <input type="text" id="speed_limit" name="speed_limit" class="form-control bg-white" placeholder="10M/10M" autocomplete="off" />
+                          <label class="fw-bold">RATE LIMIT DASAR (RX/TX)</label>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1 mt-2">
+                            <button type="button" class="btn btn-xs btn-primary btn-speed-pick" data-speed="1M/1M">1M</button>
+                            <button type="button" class="btn btn-xs btn-primary btn-speed-pick" data-speed="5M/5M">5M</button>
+                            <button type="button" class="btn btn-xs btn-primary btn-speed-pick" data-speed="10M/10M">10M</button>
+                            <button type="button" class="btn btn-xs btn-primary btn-speed-pick" data-speed="20M/20M">20M</button>
+                            <button type="button" class="btn btn-xs btn-primary btn-speed-pick" data-speed="30M/30M">30M</button>
+                            <button type="button" class="btn btn-xs btn-primary btn-speed-pick" data-speed="50M/50M">50M</button>
+                            <button type="button" class="btn btn-xs btn-primary btn-speed-pick" data-speed="100M/100M">100M</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="form-floating form-floating-outline">
+                    <select id="ip_pool" name="ip_pool" class="form-select border-primary">
+                        <option value="">-- TANPA POOL --</option>
+                        @foreach($ipPools as $pool)
+                            <option value="{{ $pool->name }}">{{ $pool->name }} ({{ $pool->ranges }})</option>
+                        @endforeach
+                    </select>
+                    <label>
+                        IP POOL (RADIUS)
+                        <a href="javascript:void(0);" class="ms-1 text-primary" data-bs-toggle="modal" data-bs-target="#modalInfoIp">
+                            <i class="mdi mdi-information-outline"></i>
+                        </a>
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-floating form-floating-outline">
+                    <select id="address_list" name="address_list" class="form-select border-primary">
+                        <option value="">-- TANPA LIST --</option>
+                        @foreach($addressLists as $list)
+                            <option value="{{ $list->name }}">{{ $list->name }}</option>
+                        @endforeach
+                    </select>
+                    <label>
+                        ADDRESS LIST (RADIUS)
+                        <a href="javascript:void(0);" class="ms-1 text-primary" data-bs-toggle="modal" data-bs-target="#modalInfoIp">
+                            <i class="mdi mdi-information-outline"></i>
+                        </a>
+                    </label>
+                </div>
+            </div>
         </div>
       </div>
-      <div class="col-sm-12">
-        <div class="input-group input-group-merge">
-          <span id="basicPost2" class="input-group-text"><i class='mdi mdi-stack-overflow'></i></span>
-          <div class="form-floating form-floating-outline">
-            <input type="text" id="kode" name="kode" class="form-control dt-post" autocomplete="off" />
-            <label for="basicPost">KODE</label>
-          </div>
-        </div>
-      </div>
-      <div class="col-sm-12">
-        <div class="input-group input-group-merge">
-          <span id="basicPost2" class="input-group-text"><i class='mdi mdi-cash-100'></i></span>
-          <div class="form-floating form-floating-outline">
-            <input type="number" id="kopricede" name="price" class="form-control dt-post" autocomplete="off" />
-            <label for="basicPost">HARGA</label>
+
+      <div class="col-sm-12 mt-4">
+        <div class="card border-primary">
+          <div class="card-body p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+              <div>
+                <h6 class="mb-0 fw-bold text-primary"><i class="mdi mdi-flash-circle me-1"></i>ADVANCED BURST MODE</h6>
+                <small>Gunakan ini untuk fitur akselerasi kecepatan sementara</small>
+              </div>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input scale-150" type="checkbox" id="is_burst">
+                <input type="hidden" name="is_burst" value="0">
+              </div>
+            </div>
+
+            <div id="section-burst" style="display: none;">
+                <hr class="my-3">
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-muted uppercase">Burst Rate (Max)</label>
+                    <div class="form-floating form-floating-outline">
+                      <input type="text" name="burst_rate" class="form-control" placeholder="40M/40M" />
+                      <label>Contoh: 40M/40M</label>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-muted uppercase">Burst Threshold</label>
+                    <div class="form-floating form-floating-outline">
+                      <input type="text" name="burst_threshold" class="form-control" placeholder="10M/10M" />
+                      <label>Contoh: 10M/10M</label>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-muted uppercase">Burst Time (Detik)</label>
+                    <div class="form-floating form-floating-outline">
+                      <input type="text" name="burst_time" class="form-control" placeholder="60/60" />
+                      <label>Contoh: 60/60</label>
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label small fw-bold text-muted uppercase">Antrian Priority</label>
+                    <div class="form-floating form-floating-outline">
+                      <select name="priority" class="form-select">
+                        @for($i=1; $i<=8; $i++)
+                          <option value="{{ $i }}" {{ $i == 8 ? 'selected' : '' }}>Priority {{ $i }}</option>
+                        @endfor
+                      </select>
+                      <label>Pilih Prioritas</label>
+                    </div>
+                  </div>
+                </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="col-sm-12">
-        <div class="input-group input-group-merge">
-          <span id="basicSalary2" class="input-group-text"><i class='mdi mdi-usb-port'></i></span>
-          <div class="form-floating form-floating-outline">
-            <textarea id="description" name="description" class="form-control" style="height: 100px;"
-              autocomplete="off"></textarea>
-
-            <label for="basicSalary">KETERANGAN</label>
+      <div class="col-sm-12 mt-4">
+          <div class="form-floating form-floating-outline mb-3">
+            <textarea id="description" name="description" class="form-control" style="height: 80px;" placeholder="KETERANGAN"></textarea>
+            <label>KETERANGAN PAKET</label>
           </div>
-        </div>
-      </div>
-      <div class="col-sm-12">
-        <div class="input-group input-group-merge">
-          <span id="basicSalary2" class="input-group-text"><i class='mdi mdi-alert-circle-check-outline'></i></span>
           <div class="form-floating form-floating-outline">
             <select name="isActive" class="form-select">
-              <option value="1">Aktif</option>
-              <option value="0">Off</option>
+              <option value="1">AKTIF</option>
+              <option value="0">NON-AKTIF</option>
             </select>
-            <label for="basicSalary">STATUS</label>
+            <label>STATUS PAKET</label>
           </div>
-        </div>
       </div>
 
-      <div class="col-sm-12">
-        <button type="submit" class="btn btn-primary data-submit me-sm-3 me-1">Submit</button>
-        <button type="reset" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">Cancel</button>
+      <div class="col-sm-12 mt-4 pt-2 border-top">
+        <button type="submit" class="btn btn-primary data-submit me-sm-3 me-1 shadow w-100 mb-2">SIMPAN PERUBAHAN PAKET</button>
+        <button type="reset" class="btn btn-outline-secondary w-100" data-bs-dismiss="offcanvas">BATAL</button>
       </div>
     </form>
 
   </div>
+</div>
+
+<!-- Modal Informasi -->
+<div class="modal fade animate__animated animate__fadeIn" id="modalInfoIp" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title text-white"><i class="mdi mdi-help-circle-outline me-2"></i>Penjelasan Teknis</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <div class="avatar avatar-xl bg-label-primary mx-auto mb-3">
+                        <span class="avatar-initial rounded-circle"><i class="mdi mdi-network-outline mdi-48px"></i></span>
+                    </div>
+                    <h5 class="fw-bold">Mengapa ada Address List padahal sudah ada IP Pool?</h5>
+                </div>
+                
+                <div class="d-flex mb-3">
+                    <div class="me-3">
+                        <span class="badge bg-label-success p-2"><i class="mdi mdi-ip-network mdi-24px"></i></span>
+                    </div>
+                    <div>
+                        <h6 class="mb-1 fw-bold">1. IP POOL (Pemberi Alamat)</h6>
+                        <p class="mb-0 small text-muted">Berfungsi menentukan alamat IP apa yang didapat pelanggan. <br><strong>Analogi:</strong> Seperti memberikan nomor kursi di bioskop.</p>
+                    </div>
+                </div>
+
+                <div class="d-flex mb-3">
+                    <div class="me-3">
+                        <span class="badge bg-label-info p-2"><i class="mdi mdi-list-status mdi-24px"></i></span>
+                    </div>
+                    <div>
+                        <h6 class="mb-1 fw-bold">2. ADDRESS LIST (Pengelompokan)</h6>
+                        <p class="mb-0 small text-muted">Berfungsi memasukkan IP tersebut ke daftar khusus di Firewall MikroTik. <br><strong>Analogi:</strong> Seperti menandai kursi mana yang VIP atau yang harus diawasi petugas.</p>
+                    </div>
+                </div>
+
+                <div class="bg-label-warning p-3 rounded mt-3">
+                    <small class="d-block text-dark fw-bold mb-1">Kesimpulan:</small>
+                    <small class="text-dark">IP Pool untuk <strong>"Koneksi"</strong>, sedangkan Address List untuk <strong>"Aturan Khusus"</strong> di firewall router Anda.</small>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-primary w-100" data-bs-dismiss="modal">Saya Mengerti</button>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

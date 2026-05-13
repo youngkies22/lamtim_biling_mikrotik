@@ -19,12 +19,15 @@ Route::middleware(['auth'])->group(function () {
   Route::get('/', [HomePage::class, 'index'])->name('pages-home');
 
   // Super Admin + Admin only (role 1,2) — server management, internet packages
-  Route::middleware('role:1,2')->group(function () {
-    require __DIR__ . '/modules/mikrotik.php';
-    require __DIR__ . '/modules/olt.php';
-    require __DIR__ . '/modules/kategori.php';
-    require __DIR__ . '/modules/paket.php';
-  });
+    Route::middleware('role:1,2')->group(function () {
+      require __DIR__ . '/modules/mikrotik.php';
+      require __DIR__ . '/modules/olt.php';
+      require __DIR__ . '/modules/kategori.php';
+      require __DIR__ . '/modules/paket.php';
+      require __DIR__ . '/modules/ip-pool.php';
+      require __DIR__ . '/modules/address-list.php';
+      require __DIR__ . '/modules/settings.php';
+    });
 
   // Admin + Teknisi (role 1,2,4) — network devices, mapping, pelanggan CRUD
   Route::middleware('role:1,2,4')->group(function () {

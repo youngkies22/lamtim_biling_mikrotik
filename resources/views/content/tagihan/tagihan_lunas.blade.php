@@ -77,6 +77,7 @@
           }
         },
         { data: 'noTagihan'},
+        { data: 'user_nama'},
         { data: 'paket_nama'},
         { data: 'bulan'},
         { data: 'tahun'},
@@ -560,6 +561,7 @@
           <th>NO</th>
           <th>AKSI</th>
           <th>NO TAGIHAN</th>
+          <th>NAMA</th>
           <th>PAKET</th>
           <th>BULAN</th>
           <th>TAHUN</th>

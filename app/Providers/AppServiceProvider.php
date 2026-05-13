@@ -19,6 +19,6 @@ class AppServiceProvider extends ServiceProvider
    */
   public function boot(): void
   {
-    //
+    \App\Models\Lamtim_user_mikrotik_details::observe(\App\Observers\UserMikrotikObserver::class);
   }
 }

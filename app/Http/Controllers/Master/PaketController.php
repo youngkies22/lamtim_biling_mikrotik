@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Master;
 
 use App\Http\Controllers\Controller;
+use App\Models\Lamtim_address_list;
+use App\Models\Lamtim_ip_pool;
 use App\Models\Lamtim_paket;
 use App\Services\BaseService;
 use Carbon\Carbon;
@@ -22,7 +24,9 @@ class PaketController extends Controller
    */
   public function index()
   {
-    return view('content.kategori_paket.paket');
+    $ipPools = Lamtim_ip_pool::all();
+    $addressLists = Lamtim_address_list::all();
+    return view('content.kategori_paket.paket', compact('ipPools', 'addressLists'));
   }
 
   /**
@@ -42,7 +46,15 @@ class PaketController extends Controller
       'price'       => 'required|numeric', // 'price' seharusnya numeric (integer atau float)
       //'picture'     => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // 'picture' lebih baik divalidasi sebagai file gambar
       'description' => 'required|string',
-      'isActive'    => 'required|boolean', // 'isActive' seharusnya boolean (true/false, 0/1)
+      'isActive'    => 'required|boolean',
+      'speed_limit' => 'nullable|string|max:50',
+      'ip_pool'     => 'nullable|string|max:50',
+      'address_list'=> 'nullable|string|max:100',
+      'is_burst'    => 'nullable|boolean',
+      'burst_rate'  => 'nullable|string|max:50',
+      'burst_threshold' => 'nullable|string|max:50',
+      'burst_time'  => 'nullable|string|max:50',
+      'priority'    => 'nullable|integer|min:1|max:8',
     ]);
     return $this->service->store($validated);
   }
@@ -69,7 +81,14 @@ class PaketController extends Controller
       'price'       => 'required|numeric', // 'price' seharusnya numeric (integer atau float)
       //'picture'     => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // 'picture' lebih baik divalidasi sebagai file gambar
       'description' => 'required|string',
-      'isActive'    => 'required|boolean', // 'isActive' seharusnya boolean (true/false, 0/1)
+      'speed_limit' => 'nullable|string|max:50',
+      'ip_pool'     => 'nullable|string|max:50',
+      'address_list'=> 'nullable|string|max:100',
+      'is_burst'    => 'nullable|boolean',
+      'burst_rate'  => 'nullable|string|max:50',
+      'burst_threshold' => 'nullable|string|max:50',
+      'burst_time'  => 'nullable|string|max:50',
+      'priority'    => 'nullable|integer|min:1|max:8',
     ]);
     return $this->service->update($validated, $id);
   }
@@ -91,6 +110,14 @@ class PaketController extends Controller
       'price',
       'description',
       'isActive',
+      'speed_limit',
+      'ip_pool',
+      'address_list',
+      'is_burst',
+      'burst_rate',
+      'burst_threshold',
+      'burst_time',
+      'priority',
       'created_at',
       'updated_at',
     ];

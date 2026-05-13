@@ -468,8 +468,16 @@ class MikrotikService
     $failed = 0;
     $errors = [];
 
+    // Pre-load semua paket untuk mapping (menghindari N+1 query)
+    $pakets = \App\Models\Lamtim_paket::all()->keyBy('nama');
+
     foreach ($secrets as $secret) {
       try {
+        // Cari idPaket berdasarkan nama profile dari Mikrotik
+        $profileName = $secret['profile'] ?? 'default';
+        $idPaket = isset($pakets[$profileName]) ? $pakets[$profileName]->id : null;
+        $idKategori = isset($pakets[$profileName]) ? $pakets[$profileName]->idKategori : null;
+
         if ($secret['status'] === 'existing' && !empty($secret['db_id'])) {
           // Update existing user mikrotik details
           $mikrotikDetail = Lamtim_user_mikrotik_details::find($secret['db_id']);
@@ -478,7 +486,9 @@ class MikrotikService
               'idMikrotikUser'       => $secret['mikrotik_id'],
               'namaMikrotikUser'     => $secret['name'],
               'serviceMikrotikUser'  => $secret['service'],
-              'profileMikrotikUser'  => $secret['profile'],
+              'profileMikrotikUser'  => $profileName,
+              'idPaket'              => $idPaket,
+              'idKategori'           => $idKategori,
               'password'             => $secret['password'],
               'localAdress'          => $secret['remote_address'] ?? $mikrotikDetail->localAdress,
             ]);
@@ -489,7 +499,7 @@ class MikrotikService
           }
         } elseif ($secret['status'] === 'new') {
           // Buat user baru dalam transaksi
-          DB::transaction(function () use ($secret, $idMikrotik, &$created) {
+          DB::transaction(function () use ($secret, $idMikrotik, $profileName, $idPaket, $idKategori, &$created) {
             // 1. Create User
             $user = User::create([
               'name'     => $secret['name'],
@@ -516,7 +526,9 @@ class MikrotikService
               'idMikrotikUser'      => $secret['mikrotik_id'],
               'namaMikrotikUser'    => $secret['name'],
               'serviceMikrotikUser' => $secret['service'],
-              'profileMikrotikUser' => $secret['profile'],
+              'profileMikrotikUser' => $profileName,
+              'idPaket'             => $idPaket,
+              'idKategori'          => $idKategori,
               'password'            => $secret['password'],
               'localAdress'         => $secret['remote_address'] ?? null,
             ]);

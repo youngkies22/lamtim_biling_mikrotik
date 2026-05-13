@@ -276,9 +276,19 @@
 
 
 
-
+    function fillExampleData() {
+      const form = document.getElementById("form-add-new-record");
+      form.querySelector('[name="nama"]').value = "MIKROTIK1";
+      form.querySelector('[name="kode"]').value = "MK1";
+      form.querySelector('[name="username"]').value = "budut22";
+      form.querySelector('[name="password"]').value = "budut22";
+      form.querySelector('[name="ip"]').value = "192.168.98.1";
+      form.querySelector('[name="port"]').value = "8728";
+      form.querySelector('[name="isActive"]').value = "1";
+    }
 
 </script>
+
 @endsection
 
 @section('content')
@@ -310,7 +320,12 @@
 <div class="offcanvas offcanvas-end" id="add-new-record">
   <div class="offcanvas-header border-bottom">
     <h5 class="offcanvas-title" id="exampleModalLabel">New Record</h5>
-    <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    <div>
+        <button type="button" class="btn btn-sm btn-info me-2" onclick="fillExampleData()">
+            <i class="mdi mdi-magic-staff me-1"></i>Isi Contoh
+        </button>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
   </div>
   <div class="offcanvas-body flex-grow-1">
     <form class="add-new-record pt-0 row g-3" id="form-add-new-record" onsubmit="return false">

@@ -114,6 +114,23 @@ $navbarDetached = ($navbarDetached ?? '');
                 <div class="dropdown-divider"></div>
               </li>
               @if (Auth::check())
+              @if (Auth::user()->hasRole(1))
+              <li>
+                <a class="dropdown-item" href="{{ route('setting.index') }}">
+                  <i class='mdi mdi-cog-outline me-2'></i>
+                  <span class="align-middle">Pengaturan Sistem</span>
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="{{ route('settings.sync.index') }}">
+                  <i class='mdi mdi-sync-circle me-2'></i>
+                  <span class="align-middle">Sinkron</span>
+                </a>
+              </li>
+              <li>
+                <div class="dropdown-divider"></div>
+              </li>
+              @endif
               <li>
                 <a class="dropdown-item" href="{{ route('logout') }}"
                   onclick="event.preventDefault(); document.getElementById('logout-form').submit();">

@@ -88,6 +88,7 @@
               <div>GOOGLE MAP</div>
             </a>
           </li>
+          </li>
         </ul>
       </li>
       @endif
@@ -162,6 +163,48 @@
             <a href="{{ route('paket.index') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-list-box mdi-20px"></i>
               <div>PAKET</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="{{ route('ip-pool.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-ip-network mdi-20px"></i>
+              <div>IP POOL</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="{{ route('address-list.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-list-status mdi-20px"></i>
+              <div>ADDRESS LIST</div>
+            </a>
+          </li>
+        </ul>
+      </li>
+      @endif
+
+      <!-- RADIUS - Super Admin(1), Admin(2) only -->
+      @if(auth()->user()->hasRole(1,2))
+      <li class="menu-item menu-dropdown">
+        <a href="javascript:void(0);" class="menu-link menu-toggle">
+          <i class="menu-icon tf-icons mdi mdi-radius-outline"></i>
+          <div>RADIUS</div>
+        </a>
+        <ul class="menu-sub">
+          <li class="menu-item">
+            <a href="{{ route('radius.user.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-account-star mdi-20px"></i>
+              <div>PELANGGAN RADIUS</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="{{ route('radius.sync.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-sync mdi-20px"></i>
+              <div>SINKRONISASI</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="{{ route('radius.migration.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-database-export mdi-20px"></i>
+              <div>ALAT MIGRASI</div>
             </a>
           </li>
         </ul>
