@@ -80,14 +80,14 @@ class RadiusConfigController extends Controller
         try {
             if ($isWindows) {
                 // Di Windows, cek via where
-                $whichRadiusd = trim((string) shell_exec('where radiusd.exe 2>NUL || where freeradius.exe 2>NUL'));
+                $whichRadiusd = trim((string) \shell_exec('where radiusd.exe 2>NUL || where freeradius.exe 2>NUL'));
             } else {
-                $whichRadiusd = trim((string) shell_exec('which radiusd 2>/dev/null || which freeradius 2>/dev/null'));
+                $whichRadiusd = trim((string) \shell_exec('which radiusd 2>/dev/null || which freeradius 2>/dev/null'));
             }
             if ($whichRadiusd) {
                 $result['binary_radiusd'] = true;
                 if (!$isWindows) {
-                    $version = @shell_exec('radiusd -v 2>/dev/null || freeradius -v 2>/dev/null');
+                    $version = @\shell_exec('radiusd -v 2>/dev/null || freeradius -v 2>/dev/null');
                     if ($version) {
                         preg_match('/FreeRADIUS Version (\S+)/', $version, $m);
                         $result['version'] = $m[1] ?? trim(explode("\n", $version)[0]);
@@ -101,9 +101,9 @@ class RadiusConfigController extends Controller
         // Cek binary radclient
         try {
             if ($isWindows) {
-                $whichRadclient = trim((string) shell_exec('where radclient.exe 2>NUL'));
+                $whichRadclient = trim((string) \shell_exec('where radclient.exe 2>NUL'));
             } else {
-                $whichRadclient = trim((string) shell_exec('which radclient 2>/dev/null'));
+                $whichRadclient = trim((string) \shell_exec('which radclient 2>/dev/null'));
             }
             if ($whichRadclient) {
                 $result['binary_radclient'] = true;
@@ -115,7 +115,7 @@ class RadiusConfigController extends Controller
         // Cek status service (hanya di Linux)
         if (!$isWindows) {
             try {
-                $statusOutput = @shell_exec('systemctl is-active freeradius 2>/dev/null || systemctl is-active radiusd 2>/dev/null');
+                $statusOutput = @\shell_exec('systemctl is-active freeradius 2>/dev/null || systemctl is-active radiusd 2>/dev/null');
                 $result['service_active'] = trim((string) $statusOutput) === 'active';
             } catch (\Exception $e) {
                 // Service check tidak tersedia
