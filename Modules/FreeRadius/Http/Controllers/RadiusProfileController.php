@@ -46,7 +46,8 @@ class RadiusProfileController extends Controller
                 $data[] = [
                     'groupname' => $name,
                     'limit' => $limit,
-                    'pool' => $pool
+                    'pool' => $pool,
+                    'action' => '<button type="button" class="btn btn-sm btn-outline-danger btn-delete-profile" data-group="'.$name.'"><i class="mdi mdi-delete"></i></button>',
                 ];
             }
                                  
@@ -86,5 +87,11 @@ class RadiusProfileController extends Controller
         } catch (\Exception $e) {
             return response()->json(['status' => false, 'message' => $e->getMessage()]);
         }
+    }
+
+    public function destroy($groupname)
+    {
+        $result = $this->radiusService->deleteGroup($groupname);
+        return response()->json($result);
     }
 }

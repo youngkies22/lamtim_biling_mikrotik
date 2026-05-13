@@ -190,6 +190,24 @@
         </a>
         <ul class="menu-sub">
           <li class="menu-item">
+            <a href="{{ route('radius.dashboard') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-view-dashboard mdi-20px"></i>
+              <div>DASHBOARD</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="{{ route('radius.nas.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-router mdi-20px"></i>
+              <div>NAS CLIENTS</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="{{ route('radius.profile.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-package-variant-closed mdi-20px"></i>
+              <div>PAKET / PROFIL</div>
+            </a>
+          </li>
+          <li class="menu-item">
             <a href="{{ route('radius.user.index') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-account-star mdi-20px"></i>
               <div>PELANGGAN RADIUS</div>
@@ -199,6 +217,18 @@
             <a href="{{ route('radius.sync.index') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-sync mdi-20px"></i>
               <div>SINKRONISASI</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="{{ route('radius.monitor.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-wifi mdi-20px"></i>
+              <div>MONITORING</div>
+            </a>
+          </li>
+          <li class="menu-item">
+            <a href="{{ route('radius.monitor.history') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-history mdi-20px"></i>
+              <div>RIWAYAT SESI</div>
             </a>
           </li>
           <li class="menu-item">

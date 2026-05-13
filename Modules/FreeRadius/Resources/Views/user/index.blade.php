@@ -6,11 +6,13 @@
 <link rel="stylesheet" href="{{asset('assets/vendor/libs/datatables-bs5/datatables.bootstrap5.css')}}">
 <link rel="stylesheet" href="{{asset('assets/vendor/libs/datatables-responsive-bs5/responsive.bootstrap5.css')}}">
 <link rel="stylesheet" href="{{asset('assets/vendor/libs/select2/select2.css')}}" />
+<link rel="stylesheet" href="{{asset('assets/vendor/libs/sweetalert2/sweetalert2.css')}}" />
 @endsection
 
 @section('vendor-script')
 <script src="{{asset('assets/vendor/libs/datatables-bs5/datatables-bootstrap5.js')}}"></script>
 <script src="{{asset('assets/vendor/libs/select2/select2.js')}}"></script>
+<script src="{{asset('assets/vendor/libs/sweetalert2/sweetalert2.js')}}"></script>
 @endsection
 
 @section('page-script')
@@ -37,6 +39,13 @@
             data: 'username',
             render: function(data) {
                 return '<div class="d-flex align-items-center"><i class="mdi mdi-account-circle mdi-24px text-primary me-2"></i><span class="fw-bold">' + data + '</span></div>';
+            }
+        },
+        { 
+            data: 'nama',
+            render: function(data) {
+                if (!data || data === '-') return '<span class="text-muted fst-italic">-</span>';
+                return '<span>' + data + '</span>';
             }
         },
         { 
@@ -78,6 +87,11 @@
                 if (data === 'Isolir') { color = 'danger'; icon = 'mdi mdi-alert-circle'; }
                 return '<span class="badge bg-label-' + color + '"><i class="' + icon + ' me-1"></i>' + data + '</span>';
             }
+        },
+        { 
+            data: 'action',
+            orderable: false,
+            searchable: false
         }
       ],
       dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6 d-flex justify-content-center justify-content-md-end"f>>t<"row"<"col-sm-12 col-md-6"i><"col-sm-12 col-md-6"p>>',
@@ -102,6 +116,90 @@
         $('#filter-status').val('Online');
         dt_user.draw();
     });
+
+    // Sync All from Database
+    $('#btn-sync-all').on('click', function() {
+        const btn = $(this);
+        Swal.fire({
+            title: 'Sinkron Semua Pelanggan?',
+            text: 'Semua data pelanggan dari database billing akan disinkronkan ke FreeRADIUS.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Sinkronkan!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Sinkronisasi...');
+                $.ajax({
+                    url: "{{ route('radius.user.sync-from-db') }}",
+                    type: 'POST',
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    success: function(response) {
+                        if (response.status) {
+                            Swal.fire('Berhasil!', response.message, 'success');
+                            dt_user.ajax.reload();
+                        } else {
+                            Swal.fire('Gagal', response.message, 'error');
+                        }
+                    },
+                    error: function() { Swal.fire('Error', 'Gagal sinkronisasi.', 'error'); },
+                    complete: function() { btn.prop('disabled', false).html('<i class="mdi mdi-database-sync me-1"></i> Sinkron Semua dari Database'); }
+                });
+            }
+        });
+    });
+
+    // Sync Single User
+    $(document).on('click', '.btn-sync-single', function() {
+        const username = $(this).data('username');
+        const btn = $(this);
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span>');
+        $.ajax({
+            url: '{{ route("radius.user.sync-single", ":username") }}'.replace(':username', encodeURIComponent(username)),
+            type: 'POST',
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            success: function(response) {
+                if (response.status) {
+                    toastr.success(response.message);
+                    dt_user.ajax.reload(null, false);
+                } else {
+                    toastr.error(response.message);
+                }
+            },
+            error: function() { toastr.error('Gagal sinkronisasi user.'); },
+            complete: function() { btn.prop('disabled', false).html('<i class="mdi mdi-sync"></i>'); }
+        });
+    });
+
+    // Delete User
+    $(document).on('click', '.btn-delete-user', function() {
+        const username = $(this).data('username');
+        Swal.fire({
+            title: 'Hapus User?',
+            text: 'User ' + username + ' akan dihapus dari RADIUS. Data billing tidak terpengaruh.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: '{{ route("radius.user.delete", ":username") }}'.replace(':username', encodeURIComponent(username)),
+                    type: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+                    success: function(response) {
+                        if (response.status) {
+                            Swal.fire('Berhasil!', response.message, 'success');
+                            dt_user.ajax.reload();
+                        } else {
+                            Swal.fire('Gagal', response.message, 'error');
+                        }
+                    },
+                    error: function() { Swal.fire('Error', 'Gagal menghapus user.', 'error'); }
+                });
+            }
+        });
+    });
   });
 </script>
 @endsection
@@ -115,7 +213,7 @@
 <div class="alert alert-primary alert-dismissible d-flex align-items-center mb-4" role="alert">
     <i class="mdi mdi-information-outline me-2 mdi-24px"></i>
     <div>
-        Data pelanggan diambil langsung dari <b>database FreeRADIUS</b>. Untuk menambah atau menghapus pelanggan, gunakan menu <b>Billing</b>.
+        Data pelanggan diambil langsung dari <b>database FreeRADIUS</b>. Gunakan tombol <b>Sinkron</b> untuk menyelaraskan data dari database billing ke RADIUS.
     </div>
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
@@ -153,20 +251,27 @@
 
 {{-- Table --}}
 <div class="card">
-    <div class="card-header">
-        <h5 class="mb-0"><i class="mdi mdi-account-group me-1"></i> Daftar Pelanggan RADIUS</h5>
-        <small class="text-muted">Data dari tabel radcheck, radusergroup, radreply, dan radacct</small>
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap">
+        <div>
+            <h5 class="mb-0"><i class="mdi mdi-account-group me-1"></i> Daftar Pelanggan RADIUS</h5>
+            <small class="text-muted">Data dari tabel radcheck, radusergroup, radreply, dan radacct</small>
+        </div>
+        <button type="button" id="btn-sync-all" class="btn btn-success">
+            <i class="mdi mdi-database-sync me-1"></i> Sinkron Semua dari Database
+        </button>
     </div>
     <div class="card-datatable table-responsive">
         <table id="table-radius-users" class="table table-hover border-top">
             <thead class="table-light">
                 <tr>
                     <th>Username</th>
+                    <th>Nama Pelanggan</th>
                     <th>Password</th>
                     <th>Profile / Group</th>
                     <th>Rate Limit</th>
                     <th>Alamat IP</th>
                     <th>Status</th>
+                    <th style="width: 120px">Aksi</th>
                 </tr>
             </thead>
         </table>

@@ -43,6 +43,11 @@
                 if (!data || data === '-') return '<span class="text-muted">-</span>';
                 return '<span class="badge bg-label-primary">' + data + '</span>';
             }
+        },
+        {
+            data: 'action',
+            orderable: false,
+            searchable: false
         }
       ],
       dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6 d-flex justify-content-center justify-content-md-end"f>>t<"row"<"col-sm-12 col-md-6"i><"col-sm-12 col-md-6"p>>',
@@ -85,6 +90,38 @@
         },
         complete: function() {
           btn.prop('disabled', false).html('<i class="mdi mdi-sync me-1"></i> Sinkron dari MikroTik');
+        }
+      });
+    });
+
+    // Handle Delete Profile
+    $(document).on('click', '.btn-delete-profile', function() {
+      var groupname = $(this).data('group');
+      Swal.fire({
+        title: 'Hapus Paket?',
+        text: "Group " + groupname + " akan dihapus permanen dari RADIUS.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Hapus!',
+        cancelButtonText: 'Batal'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          $.ajax({
+            url: '{{ route("radius.profile.delete", ":groupname") }}'.replace(':groupname', encodeURIComponent(groupname)),
+            type: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
+            success: function(response) {
+              if (response.status) {
+                Swal.fire('Berhasil!', response.message, 'success');
+                dt_profile.ajax.reload();
+              } else {
+                Swal.fire('Gagal', response.message, 'error');
+              }
+            },
+            error: function() {
+              Swal.fire('Error', 'Gagal menghapus paket.', 'error');
+            }
+          });
         }
       });
     });
@@ -157,6 +194,7 @@
                             <th>Nama Paket (Group)</th>
                             <th>Rate Limit</th>
                             <th>IP Pool</th>
+                            <th style="width: 80px">Aksi</th>
                         </tr>
                     </thead>
                 </table>

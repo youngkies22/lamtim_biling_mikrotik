@@ -57,4 +57,44 @@ class RadiusSyncController extends Controller
             return response()->json(['status' => false, 'message' => 'Error: ' . $e->getMessage()]);
         }
     }
+
+    /**
+     * Sinkronisasi NAS dari MikroTik aktif ke tabel nas
+     */
+    public function syncNas()
+    {
+        try {
+            $result = $this->radiusService->syncNas();
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json(['status' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Sinkronisasi Group/Paket dari Billing ke radgroupreply
+     */
+    public function syncGroups()
+    {
+        try {
+            $result = $this->radiusService->syncGroupsFromBilling();
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json(['status' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Import user dari MikroTik ke Billing + RADIUS
+     */
+    public function importFromMikrotik(Request $request)
+    {
+        $request->validate(['id_mikrotik' => 'required|exists:lamtim_mikrotiks,id']);
+        try {
+            $result = $this->radiusService->importFromMikrotik($request->id_mikrotik);
+            return response()->json($result);
+        } catch (\Exception $e) {
+            return response()->json(['status' => false, 'message' => 'Error: ' . $e->getMessage()]);
+        }
+    }
 }
