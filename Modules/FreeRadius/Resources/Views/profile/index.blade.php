@@ -64,36 +64,6 @@
       }
     });
 
-    // Handle Sync Form
-    $('#form-sync-profile').on('submit', function(e) {
-      e.preventDefault();
-      const btn = $('#btn-sync-profile');
-      btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sinkronisasi...');
-
-      $.ajax({
-        url: "{{ route('radius.profile.sync') }}",
-        method: 'POST',
-        data: $(this).serialize(),
-        headers: {
-          'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
-        success: function(response) {
-          if (response.status) {
-            Swal.fire('Berhasil!', 'Sinkronisasi profil selesai.', 'success');
-            dt_profile.ajax.reload();
-          } else {
-            Swal.fire('Gagal', response.message, 'error');
-          }
-        },
-        error: function() {
-          Swal.fire('Error', 'Terjadi kesalahan sistem.', 'error');
-        },
-        complete: function() {
-          btn.prop('disabled', false).html('<i class="mdi mdi-sync me-1"></i> Sinkron dari MikroTik');
-        }
-      });
-    });
-
     // Handle Delete Profile
     $(document).on('click', '.btn-delete-profile', function() {
       var groupname = $(this).data('group');
@@ -144,44 +114,7 @@
 </div>
 
 <div class="row">
-    {{-- Sync Card --}}
-    <div class="col-md-4">
-        <div class="card mb-4">
-            <h5 class="card-header"><i class="mdi mdi-sync me-1"></i> Sinkronisasi Paket</h5>
-            <div class="card-body">
-                <p class="small text-muted mb-4">Ambil daftar profile dan limitasi kecepatan (Rate Limit) dari MikroTik ke database RADIUS.</p>
-                <form id="form-sync-profile">
-                    @csrf
-                    <div class="form-floating form-floating-outline mb-4">
-                        <select name="id_mikrotik" class="form-select" required>
-                            <option value="" disabled selected>Pilih Router</option>
-                            @foreach($mikrotiks as $m)
-                                <option value="{{ $m->id }}">{{ $m->nama }}</option>
-                            @endforeach
-                        </select>
-                        <label>Router Sumber</label>
-                    </div>
-                    <button type="submit" id="btn-sync-profile" class="btn btn-primary w-100">
-                        <i class="mdi mdi-sync me-1"></i> Sinkron dari MikroTik
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <div class="card bg-label-info">
-            <div class="card-body">
-                <h6><i class="mdi mdi-information-outline me-1"></i> Keterangan</h6>
-                <ul class="small mb-0 ps-3">
-                    <li class="mb-1"><b>Rate Limit</b>: Kecepatan upload/download yang ditetapkan untuk paket ini.</li>
-                    <li class="mb-1"><b>IP Pool</b>: Nama pool IP yang digunakan oleh paket ini.</li>
-                    <li><b>ISOLIR</b>: Paket khusus untuk pelanggan yang disuspend.</li>
-                </ul>
-            </div>
-        </div>
-    </div>
-
-    {{-- Table Card --}}
-    <div class="col-md-8">
+    <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-header">
                 <h5 class="mb-0"><i class="mdi mdi-package-variant me-1"></i> Daftar Paket RADIUS</h5>

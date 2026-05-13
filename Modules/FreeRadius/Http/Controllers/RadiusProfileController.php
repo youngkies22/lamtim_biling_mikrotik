@@ -4,7 +4,6 @@ namespace Modules\FreeRadius\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Lamtim_mikrotik;
 use Modules\FreeRadius\Models\RadGroupReply;
 use Modules\FreeRadius\Services\RadiusService;
 use Yajra\DataTables\Facades\DataTables;
@@ -20,8 +19,7 @@ class RadiusProfileController extends Controller
 
     public function index()
     {
-        $mikrotiks = Lamtim_mikrotik::where('isActive', 1)->get();
-        return view('radius::profile.index', compact('mikrotiks'));
+        return view('radius::profile.index');
     }
 
     public function json()
