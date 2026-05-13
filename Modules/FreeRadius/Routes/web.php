@@ -9,6 +9,7 @@ use Modules\FreeRadius\Http\Controllers\RadiusMigrationController;
 use Modules\FreeRadius\Http\Controllers\RadiusDashboardController;
 use Modules\FreeRadius\Http\Controllers\RadiusNasController;
 use Modules\FreeRadius\Http\Controllers\RadiusMonitorController;
+use Modules\FreeRadius\Http\Controllers\RadiusGuideController;
 
 Route::middleware(['web', 'auth'])->prefix('radius')->name('radius.')->group(function () {
     // Dashboard
@@ -50,6 +51,9 @@ Route::middleware(['web', 'auth'])->prefix('radius')->name('radius.')->group(fun
     Route::post('/config/store', [RadiusConfigController::class, 'store'])->name('config.store');
     Route::post('/config/test', [RadiusConfigController::class, 'testConnection'])->name('config.test');
     Route::post('/config/check-server', [RadiusConfigController::class, 'checkServer'])->name('config.check-server');
+
+    // Guide
+    Route::get('/guide', [RadiusGuideController::class, 'index'])->name('guide.index');
 
     // Monitoring
     Route::get('/monitoring', [RadiusMonitorController::class, 'index'])->name('monitor.index');

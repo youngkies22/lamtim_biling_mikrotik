@@ -202,6 +202,12 @@
             </a>
           </li>
           <li class="menu-item">
+            <a href="{{ route('radius.guide.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-book-open-variant mdi-20px"></i>
+              <div>PANDUAN</div>
+            </a>
+          </li>
+          <li class="menu-item">
             <a href="{{ route('radius.nas.index') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-router mdi-20px"></i>
               <div>NAS CLIENTS</div>
