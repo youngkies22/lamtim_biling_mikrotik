@@ -1,33 +1,41 @@
 @extends('layouts/layoutMaster')
 
-@section('title', 'Konfigurasi FreeRADIUS')
+@section('title', 'Status FreeRADIUS')
+
+@section('vendor-style')
+<link rel="stylesheet" href="{{asset('assets/vendor/libs/sweetalert2/sweetalert2.css')}}" />
+@endsection
+
+@section('vendor-script')
+<script src="{{asset('assets/vendor/libs/sweetalert2/sweetalert2.js')}}"></script>
+@endsection
 
 @section('page-script')
 <script>
   $(document).ready(function() {
-    $('#btn-test-connection').on('click', function() {
+    $('#btn-check-server').on('click', function() {
       const btn = $(this);
-      btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Menghubungkan...');
+      btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status"></span> Mengecek...');
 
       $.ajax({
-        url: "{{ route('radius.config.test') }}",
+        url: "{{ route('radius.config.check-server') }}",
         method: 'POST',
-        headers: {
-          'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-        },
+        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
         success: function(response) {
-          if (response.status) {
-            toastr.success(response.message);
-          } else {
-            toastr.error(response.message);
-          }
+          $('#radiusd-status').html(response.binary_radiusd
+            ? '<span class="badge bg-label-success">Terinstall</span>'
+            : '<span class="badge bg-label-danger">Tidak Terinstall</span>');
+          $('#radclient-status').html(response.binary_radclient
+            ? '<span class="badge bg-label-success">Terinstall</span>'
+            : '<span class="badge bg-label-danger">Tidak Terinstall</span>');
+          $('#service-status').html(response.service_active
+            ? '<span class="badge bg-label-success">Berjalan</span>'
+            : '<span class="badge bg-label-danger">Tidak Berjalan</span>');
+          $('#radius-version').text(response.version || '-');
+          toastr.success('Pengecekan server selesai.');
         },
-        error: function() {
-          toastr.error('Terjadi kesalahan sistem.');
-        },
-        complete: function() {
-          btn.prop('disabled', false).text('Test Koneksi');
-        }
+        error: function() { toastr.error('Gagal mengecek server.'); },
+        complete: function() { btn.prop('disabled', false).html('<i class="mdi mdi-refresh me-1"></i> Refresh Status'); }
       });
     });
   });
@@ -36,83 +44,55 @@
 
 @section('content')
 <h4 class="fw-bold py-3 mb-4">
-  <span class="text-muted fw-light">FreeRADIUS /</span> Pengaturan Koneksi
+  <span class="text-muted fw-light">FreeRADIUS /</span> Status Server
 </h4>
 
-<div class="row">
-  <div class="col-md-8">
-    <div class="card mb-4">
-      <h5 class="card-header">Detail Database FreeRADIUS</h5>
-      <form action="{{ route('radius.config.store') }}" method="POST" class="card-body">
-        @csrf
-        <div class="row g-4">
-          <div class="col-md-8">
-            <div class="form-floating form-floating-outline">
-              <input type="text" name="host" class="form-control" value="{{ $config->host ?? '' }}" placeholder="172.93.186.7" required />
-              <label>Host / IP Server (SQL)</label>
-            </div>
-          </div>
-          <div class="col-md-4">
-            <div class="form-floating form-floating-outline">
-              <input type="number" name="port" class="form-control" value="{{ $config->port ?? 3306 }}" placeholder="3306" required />
-              <label>Port</label>
-            </div>
-          </div>
-          <div class="col-md-12">
-            <div class="form-floating form-floating-outline">
-              <input type="text" name="database" class="form-control" value="{{ $config->database ?? '' }}" placeholder="radius" required />
-              <label>Nama Database</label>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-floating form-floating-outline">
-              <input type="text" name="username" class="form-control" value="{{ $config->username ?? '' }}" placeholder="root" required />
-              <label>Username SQL</label>
-            </div>
-          </div>
-          <div class="col-md-6">
-            <div class="form-floating form-floating-outline">
-              <input type="password" name="password" class="form-control" value="{{ $config->password ?? '' }}" placeholder="············" />
-              <label>Password SQL</label>
-            </div>
-          </div>
-          <div class="col-md-12">
-            <div class="form-floating form-floating-outline">
-              <input type="text" name="secret" class="form-control" value="{{ $config->secret ?? '' }}" placeholder="Shared Secret Radius" />
-              <label>Shared Secret (MikroTik)</label>
-            </div>
-          </div>
-        </div>
-        <div class="pt-4 d-flex justify-content-between">
-          <button type="submit" class="btn btn-primary">Simpan Konfigurasi</button>
-          <button type="button" id="btn-test-connection" class="btn btn-outline-info">Test Koneksi</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <div class="col-md-4">
-    <div class="card bg-lighter border-0">
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="mdi mdi-server me-1"></i> Status FreeRADIUS</h5>
+        <button type="button" id="btn-check-server" class="btn btn-outline-secondary btn-sm">
+          <i class="mdi mdi-refresh me-1"></i> Refresh Status
+        </button>
+      </div>
       <div class="card-body">
-        <h5 class="mb-3">Informasi Penting</h5>
-        <div class="d-flex align-items-start mb-3">
-          <div class="badge rounded bg-label-primary me-3 p-2">
-            <i class="mdi mdi-database mdi-24px"></i>
-          </div>
-          <div>
-            <h6 class="mb-0">Akses SQL</h6>
-            <small class="text-muted">Aplikasi memerlukan akses port 3306 ke server target untuk mengelola user secara langsung.</small>
-          </div>
-        </div>
-        <div class="d-flex align-items-start mb-3">
-          <div class="badge rounded bg-label-info me-3 p-2">
-            <i class="mdi mdi-security mdi-24px"></i>
-          </div>
-          <div>
-            <h6 class="mb-0">Shared Secret</h6>
-            <small class="text-muted">Gunakan secret yang sama pada pengaturan Radius Client di sisi MikroTik Anda.</small>
-          </div>
-        </div>
+        <ul class="list-unstyled mb-0">
+          <li class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+            <span><i class="mdi mdi-console me-2 text-muted"></i> Binary radiusd</span>
+            <span id="radiusd-status">
+              @if($serverCheck['binary_radiusd'])
+                <span class="badge bg-label-success fs-6 px-3 py-2">Terinstall</span>
+              @else
+                <span class="badge bg-label-danger fs-6 px-3 py-2">Tidak Terinstall</span>
+              @endif
+            </span>
+          </li>
+          <li class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+            <span><i class="mdi mdi-console me-2 text-muted"></i> Binary radclient</span>
+            <span id="radclient-status">
+              @if($serverCheck['binary_radclient'])
+                <span class="badge bg-label-success fs-6 px-3 py-2">Terinstall</span>
+              @else
+                <span class="badge bg-label-danger fs-6 px-3 py-2">Tidak Terinstall</span>
+              @endif
+            </span>
+          </li>
+          <li class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom">
+            <span><i class="mdi mdi-run me-2 text-muted"></i> Service</span>
+            <span id="service-status">
+              @if($serverCheck['service_active'])
+                <span class="badge bg-label-success fs-6 px-3 py-2">Berjalan</span>
+              @else
+                <span class="badge bg-label-danger fs-6 px-3 py-2">Tidak Berjalan</span>
+              @endif
+            </span>
+          </li>
+          <li class="d-flex justify-content-between align-items-center">
+            <span><i class="mdi mdi-tag-text-outline me-2 text-muted"></i> Versi</span>
+            <span id="radius-version" class="fw-bold fs-5">{{ $serverCheck['version'] ?? '-' }}</span>
+          </li>
+        </ul>
       </div>
     </div>
   </div>

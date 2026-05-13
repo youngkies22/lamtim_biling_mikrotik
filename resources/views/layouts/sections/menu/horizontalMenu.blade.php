@@ -196,6 +196,12 @@
             </a>
           </li>
           <li class="menu-item">
+            <a href="{{ route('radius.config.index') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-server mdi-20px"></i>
+              <div>STATUS SERVER</div>
+            </a>
+          </li>
+          <li class="menu-item">
             <a href="{{ route('radius.nas.index') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-router mdi-20px"></i>
               <div>NAS CLIENTS</div>

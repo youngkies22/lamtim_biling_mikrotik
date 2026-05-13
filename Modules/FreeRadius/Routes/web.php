@@ -49,6 +49,7 @@ Route::middleware(['web', 'auth'])->prefix('radius')->name('radius.')->group(fun
     Route::get('/config', [RadiusConfigController::class, 'index'])->name('config.index');
     Route::post('/config/store', [RadiusConfigController::class, 'store'])->name('config.store');
     Route::post('/config/test', [RadiusConfigController::class, 'testConnection'])->name('config.test');
+    Route::post('/config/check-server', [RadiusConfigController::class, 'checkServer'])->name('config.check-server');
 
     // Monitoring
     Route::get('/monitoring', [RadiusMonitorController::class, 'index'])->name('monitor.index');
