@@ -45,7 +45,10 @@ class TagihanController extends Controller
       ];
     });
 
-    return view('content.tagihan.tagihan', compact('filterData'));
+    $currentMonth = (int) date('n');
+    $currentYear  = (int) date('Y');
+
+    return view('content.tagihan.tagihan', compact('filterData', 'currentMonth', 'currentYear'));
   }
 
   public function json(Request $request)

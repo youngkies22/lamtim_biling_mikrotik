@@ -46,14 +46,8 @@
           d.status_bayar = 0;
           const tahun = $('#filter-tahun').val();
           const bulan = $('#filter-bulan').val();
-          
-          // Hanya kirim filter jika tahun dan bulan sudah dipilih
-          if (tahun) {
-            d.tahun = tahun;
-          }
-          if (tahun && bulan) {
-            d.bulan = bulan;
-          }
+          if (tahun) d.tahun = tahun;
+          if (bulan) d.bulan = bulan;
         },
         // ✅ Process summary data dari response DataTables
         dataSrc: function(json) {
@@ -466,60 +460,16 @@
       });
     });
 
-    // ✅ Filter tahun event handler - Tampilkan bulan setelah tahun dipilih
-    $('#filter-tahun').on('change', function() {
-      const tahun = $(this).val();
-      const bulanContainer = $('#bulan-filter-container');
-      const bulanSelect = $('#filter-bulan');
-      
-      if (tahun) {
-        // Tampilkan filter bulan
-        bulanContainer.slideDown(200);
-        // Reset bulan
-        bulanSelect.val('');
-      } else {
-        // Sembunyikan filter bulan
-        bulanContainer.slideUp(200);
-        bulanSelect.val('');
-        // Reload table tanpa filter
-        if (window.GlobalLoading) {
-          GlobalLoading.show('Memfilter data berdasarkan periode...');
-        }
-        table.ajax.reload(() => {
-          if (window.GlobalLoading) {
-            GlobalLoading.hide();
-          }
-        });
-      }
-    });
-
-    // ✅ Filter bulan event handler - Filter baru mulai setelah bulan dipilih
-    $('#filter-bulan').on('change', function() {
-      const bulan = $(this).val();
-      const tahun = $('#filter-tahun').val();
-      
-      // Hanya filter jika tahun sudah dipilih dan bulan dipilih
-      if (tahun && bulan) {
+    // Filter tahun & bulan event handler
+    $('#filter-tahun, #filter-bulan').on('change', function() {
       if (window.GlobalLoading) {
-          GlobalLoading.show('Memfilter data berdasarkan periode...');
+        GlobalLoading.show('Memfilter data berdasarkan periode...');
       }
-
       table.ajax.reload(() => {
         if (window.GlobalLoading) {
           GlobalLoading.hide();
         }
       });
-      } else if (tahun && !bulan) {
-        // Jika tahun dipilih tapi bulan kosong, reload tanpa filter bulan
-        if (window.GlobalLoading) {
-          GlobalLoading.show('Memfilter data berdasarkan periode...');
-        }
-        table.ajax.reload(() => {
-          if (window.GlobalLoading) {
-            GlobalLoading.hide();
-          }
-        });
-      }
     });
   });
 
@@ -551,22 +501,22 @@
           <div class="flex-grow-1">
             <label for="filter-tahun" class="form-label small text-muted mb-1" style="font-size: 0.75rem;">Tahun</label>
             <select id="filter-tahun" class="form-select form-select-sm">
-              <option value="">Pilih Tahun</option>
+              <option value="">Semua Tahun</option>
               @if(isset($filterData['tahun']) && !empty($filterData['tahun']))
                 @foreach($filterData['tahun'] as $tahun)
-                  <option value="{{ $tahun }}">{{ $tahun }}</option>
+                  <option value="{{ $tahun }}" {{ $tahun == $currentYear ? 'selected' : '' }}>{{ $tahun }}</option>
                 @endforeach
               @else
-                <option value="{{ date('Y') }}">{{ date('Y') }}</option>
+                <option value="{{ $currentYear }}" selected>{{ $currentYear }}</option>
               @endif
             </select>
           </div>
 
-          <!-- Filter Bulan - Hidden sampai tahun dipilih -->
-          <div class="flex-grow-1" id="bulan-filter-container" style="display: none;">
+          <!-- Filter Bulan -->
+          <div class="flex-grow-1" id="bulan-filter-container">
             <label for="filter-bulan" class="form-label small text-muted mb-1" style="font-size: 0.75rem;">Bulan</label>
             <select id="filter-bulan" class="form-select form-select-sm">
-              <option value="">Pilih Bulan</option>
+              <option value="">Semua Bulan</option>
               @php
                 $namaBulan = [
                   1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
@@ -575,7 +525,7 @@
                 ];
               @endphp
               @foreach($namaBulan as $key => $nama)
-                <option value="{{ $key }}">{{ $nama }}</option>
+                <option value="{{ $key }}" {{ $key == $currentMonth ? 'selected' : '' }}>{{ $nama }}</option>
               @endforeach
           </select>
           </div>
