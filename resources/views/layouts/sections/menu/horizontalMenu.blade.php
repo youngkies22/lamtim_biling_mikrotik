@@ -274,6 +274,12 @@
             </a>
           </li>
           <li class="menu-item">
+            <a href="{{ route('tagihan.rekap') }}" class="menu-link">
+              <i class="menu-icon tf-icons mdi mdi-calendar-month mdi-20px"></i>
+              <div>Rekap Bulanan</div>
+            </a>
+          </li>
+          <li class="menu-item">
             <a href="{{ route('tagihan.generate') }}" class="menu-link">
               <i class="menu-icon tf-icons mdi mdi-cash-multiple mdi-20px"></i>
               <div>Generate Tagihan</div>

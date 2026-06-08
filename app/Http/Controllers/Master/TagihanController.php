@@ -108,6 +108,61 @@ class TagihanController extends Controller
   {
     return view('content.tagihan.tagihan_lunas');
   }
+
+  public function rekap()
+  {
+    $tahunDipilih = (int) request('tahun', date('Y'));
+
+    $listTahun = DB::table('lamtim_tagihans')
+      ->select('tahun')
+      ->distinct()
+      ->orderBy('tahun', 'desc')
+      ->pluck('tahun')
+      ->toArray();
+
+    if (!in_array($tahunDipilih, $listTahun)) {
+      $listTahun = array_unique(array_merge([$tahunDipilih], $listTahun));
+      rsort($listTahun);
+    }
+
+    $rows = DB::table('lamtim_tagihans')
+      ->where('tahun', $tahunDipilih)
+      ->selectRaw('
+        bulan,
+        COUNT(*) as total_tagihan,
+        SUM(total) as grand_total,
+        SUM(CASE WHEN statusBayar = 0 THEN 1 ELSE 0 END) as belum_bayar_count,
+        SUM(CASE WHEN statusBayar = 0 THEN total ELSE 0 END) as belum_bayar_total,
+        SUM(CASE WHEN statusBayar = 1 THEN 1 ELSE 0 END) as sudah_bayar_count,
+        SUM(CASE WHEN statusBayar = 1 THEN total ELSE 0 END) as sudah_bayar_total
+      ')
+      ->groupBy('bulan')
+      ->get()
+      ->keyBy('bulan');
+
+    $namaBulan = [
+      1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+      5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+      9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+    ];
+
+    $rekapBulan = [];
+    foreach ($namaBulan as $no => $nama) {
+      $row = $rows->get($no);
+      $rekapBulan[] = [
+        'no'               => $no,
+        'nama'             => $nama,
+        'total_tagihan'    => $row->total_tagihan ?? 0,
+        'grand_total'      => $row->grand_total ?? 0,
+        'belum_bayar_count'=> $row->belum_bayar_count ?? 0,
+        'belum_bayar_total'=> $row->belum_bayar_total ?? 0,
+        'sudah_bayar_count'=> $row->sudah_bayar_count ?? 0,
+        'sudah_bayar_total'=> $row->sudah_bayar_total ?? 0,
+      ];
+    }
+
+    return view('content.tagihan.rekap', compact('rekapBulan', 'listTahun', 'tahunDipilih'));
+  }
   /**
    * Bayar tagihan
    * Menandai tagihan sebagai lunas.
