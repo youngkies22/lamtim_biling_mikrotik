@@ -61,6 +61,18 @@ class TagihanController extends Controller
     $pelangganAktif = DB::table('users')
       ->where('isActive', 1)
       ->whereIn('idRole', [5])
+      ->whereExists(function ($q) {
+        $q->select(DB::raw(1))
+          ->from('lamtim_user_mikrotik_details')
+          ->whereColumn('lamtim_user_mikrotik_details.idUser', 'users.id')
+          ->where('statusIsolir', 0);
+      })
+      ->whereExists(function ($q) {
+        $q->select(DB::raw(1))
+          ->from('lamtim_user_details')
+          ->whereColumn('lamtim_user_details.idUser', 'users.id')
+          ->where('statusTagihan', 1);
+      })
       ->count();
 
     $sudahGenerate = DB::table('lamtim_tagihans')

@@ -120,7 +120,13 @@ class TagihanRepository
 
     $users = User::where('idRole', 5)
       ->where('isActive', 1)
-      ->with(['user_mikrotik:id,idUser,idPaket'])
+      ->whereHas('user_mikrotik', function ($q) {
+        $q->where('statusIsolir', 0);
+      })
+      ->whereHas('user_detail', function ($q) {
+        $q->where('statusTagihan', 1);
+      })
+      ->with(['user_mikrotik:id,idUser,idPaket,diskon'])
       ->with(['user_mikrotik.paket:id,nama,price'])
       ->get(['id', 'name', 'isActive']);
 
