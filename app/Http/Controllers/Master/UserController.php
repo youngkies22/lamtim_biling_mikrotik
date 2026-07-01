@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Master;
 
+use App\Exports\UserExport;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\MikrotikMulti;
@@ -11,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Maatwebsite\Excel\Facades\Excel;
 
 
 class UserController extends Controller
@@ -223,6 +225,14 @@ class UserController extends Controller
     $this->denyBendahara();
     $this->denyTeknisi();
     return $this->service->deleteByEncryptedId($id);
+  }
+
+  /**
+   * Export seluruh data pelanggan ke Excel (termasuk detail paket, mikrotik, dsb).
+   */
+  public function export()
+  {
+    return Excel::download(new UserExport, 'data-pelanggan-' . now()->format('Y-m-d_His') . '.xlsx');
   }
 
   public function json(Request $request)

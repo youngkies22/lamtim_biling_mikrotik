@@ -11,6 +11,8 @@ Route::prefix('user')->as('user.')->controller(UserController::class)->group(fun
   Route::post('/store/mapping', 'storeMapping')->name('mapping.store');
   Route::get('/show/map', 'showMapping')->name('show.mapping');
 
+  Route::get('/export/excel', 'export')->name('export');
+
   Route::get('/', 'index')->name('index');
   Route::get('/create', 'create')->name('create');
   Route::post('/', 'store')->name('store');

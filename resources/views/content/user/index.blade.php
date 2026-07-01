@@ -162,6 +162,7 @@
         }
       });
       $("div.head-label").html('<h5 class="card-title mb-0">Data Pelanggan</h5>');
+      $("div.dt-action-buttons").html('<a href="{{ route('user.export') }}" class="btn btn-success"><i class="mdi mdi-file-excel-outline me-1"></i> Download Excel</a>');
 
       // Delete functionality
       $(document).on('click', '.btn-delete', function(e) {
