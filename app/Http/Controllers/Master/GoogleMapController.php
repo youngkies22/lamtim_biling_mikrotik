@@ -162,6 +162,15 @@ class GoogleMapController extends Controller
     public function deleteOLT($id)
     {
         $olt = Lamtim_olt::findOrFail($id);
+
+        $odcCount = Lamtim_odc::where('idOlt', $id)->count();
+        if ($odcCount > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => "OLT tidak bisa dihapus, masih ada {$odcCount} ODC yang terhubung. Hapus ODC-nya terlebih dahulu."
+            ], 422);
+        }
+
         $olt->delete();
         return response()->json(['success' => true, 'message' => 'OLT berhasil dihapus']);
     }
@@ -302,6 +311,23 @@ class GoogleMapController extends Controller
     public function deleteODC($id)
     {
         $odc = Lamtim_odc::findOrFail($id);
+
+        $childOdcCount = Lamtim_odc::where('idOdc', $id)->count();
+        $odpCount = Lamtim_odp::where('idOdc', $id)->count();
+        $clientCount = Lamtim_user_mikrotik_details::where('idOdc', $id)->count();
+
+        if ($childOdcCount > 0 || $odpCount > 0 || $clientCount > 0) {
+            $parts = [];
+            if ($childOdcCount > 0) $parts[] = "{$childOdcCount} ODC turunan";
+            if ($odpCount > 0) $parts[] = "{$odpCount} ODP";
+            if ($clientCount > 0) $parts[] = "{$clientCount} pelanggan";
+
+            return response()->json([
+                'success' => false,
+                'message' => "ODC tidak bisa dihapus, masih ada " . implode(', ', $parts) . " yang terhubung."
+            ], 422);
+        }
+
         $odc->delete();
         return response()->json(['success' => true, 'message' => 'ODC berhasil dihapus']);
     }
@@ -450,17 +476,36 @@ class GoogleMapController extends Controller
     {
         $odp = Lamtim_odp::findOrFail($id);
 
+        $childOdpCount = Lamtim_odp::where('idOdp', $id)->count();
+        $clientCount = Lamtim_user_mikrotik_details::where('idOdp', $id)->count();
+
+        if ($childOdpCount > 0 || $clientCount > 0) {
+            $parts = [];
+            if ($childOdpCount > 0) $parts[] = "{$childOdpCount} ODP turunan";
+            if ($clientCount > 0) $parts[] = "{$clientCount} pelanggan";
+
+            return response()->json([
+                'success' => false,
+                'message' => "ODP tidak bisa dihapus, masih ada " . implode(', ', $parts) . " yang terhubung."
+            ], 422);
+        }
+
         DB::beginTransaction();
-        // Restore parent ODC port
-        if ($odp->idOdc) {
-            Lamtim_odc::where('id', $odp->idOdc)->increment('portSisa');
+        try {
+            // Restore parent ODC port
+            if ($odp->idOdc) {
+                Lamtim_odc::where('id', $odp->idOdc)->increment('portSisa');
+            }
+            // Restore parent ODP port (estafet)
+            if ($odp->idOdp) {
+                Lamtim_odp::where('id', $odp->idOdp)->increment('portSisa');
+            }
+            $odp->delete();
+            DB::commit();
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            throw $e;
         }
-        // Restore parent ODP port (estafet)
-        if ($odp->idOdp) {
-            Lamtim_odp::where('id', $odp->idOdp)->increment('portSisa');
-        }
-        $odp->delete();
-        DB::commit();
 
         return response()->json(['success' => true, 'message' => 'ODP berhasil dihapus']);
     }

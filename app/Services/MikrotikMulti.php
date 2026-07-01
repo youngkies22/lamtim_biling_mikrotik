@@ -42,10 +42,19 @@ class MikrotikMulti
 
     $db = Lamtim_mikrotik::find($idMikrotik);
     $client = new Client([
-      'host' => $db->ip,
-      'user' => $db->username,
-      'pass' => $db->password,
-      'port' => $db->port,
+      'host'     => $db->ip,
+      'user'     => $db->username,
+      'pass'     => $db->password,
+      'port'     => $db->port,
+      // Gagal cepat kalau router tidak reachable, supaya tidak melebihi
+      // max_execution_time PHP (30s) dan bisa ditangkap try/catch dengan rapi.
+      // Default library: timeout 10s x 10 attempts = bisa sampai ~110s.
+      'timeout'        => 5,
+      'attempts'       => 2,
+      // Default socket_timeout 30s nyaris sama dengan max_execution_time (30s)
+      // server, jadi kalau router lambat merespon, PHP fatal-timeout duluan
+      // sebelum StreamException sempat ditangkap try/catch. Turunkan ke 10s.
+      'socket_timeout' => 10,
     ]);
     return $client;
 

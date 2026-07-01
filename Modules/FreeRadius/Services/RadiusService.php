@@ -65,6 +65,12 @@ class RadiusService
         $isIsolir = (int) $userMikrotik->statusIsolir === 1;
         $isOff    = $userMikrotik->status === 'off' || $userMikrotik->status === 'berhenti';
 
+        // Belum ada username PPPoE (mis. mapping baru dibuat tapi belum diisi) -> skip sync
+        if (empty($username)) {
+            Log::warning("Sync RADIUS dilewati: namaMikrotikUser kosong untuk idUser={$userMikrotik->idUser}.");
+            return;
+        }
+
         // Jika statusnya OFF, hapus dari RADIUS
         if ($isOff) {
             $this->deleteUser($username);

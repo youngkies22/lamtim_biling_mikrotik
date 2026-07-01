@@ -85,17 +85,37 @@ class RadiusConfigController extends Controller
         // Deteksi OS
         $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
 
-        try {
-            $whichCmd = $isWindows
-                ? 'where radiusd.exe 2>NUL || where freeradius.exe 2>NUL'
-                : 'which radiusd 2>/dev/null || which freeradius 2>/dev/null';
-            $whichRadiusd = trim((string) \shell_exec($whichCmd));
+        // Lokasi umum binary FreeRADIUS. Dicek langsung via is_executable()
+        // karena proses PHP-FPM sering punya $PATH terbatas (tidak termasuk
+        // /usr/sbin), sehingga `which` bisa gagal walau binary-nya ada.
+        $radiusdPaths = $isWindows
+            ? []
+            : ['/usr/sbin/radiusd', '/usr/local/sbin/radiusd', '/usr/sbin/freeradius', '/usr/local/sbin/freeradius'];
+        $radclientPaths = $isWindows
+            ? []
+            : ['/usr/bin/radclient', '/usr/local/bin/radclient'];
 
-            if ($whichRadiusd) {
+        try {
+            $foundRadiusd = null;
+            foreach ($radiusdPaths as $path) {
+                if (is_executable($path)) {
+                    $foundRadiusd = $path;
+                    break;
+                }
+            }
+
+            if (!$foundRadiusd) {
+                $whichCmd = $isWindows
+                    ? 'where radiusd.exe 2>NUL || where freeradius.exe 2>NUL'
+                    : 'which radiusd 2>/dev/null || which freeradius 2>/dev/null';
+                $foundRadiusd = trim((string) \shell_exec($whichCmd)) ?: null;
+            }
+
+            if ($foundRadiusd) {
                 $result['binary_radiusd'] = true;
 
                 if (!$isWindows) {
-                    $version = \shell_exec('radiusd -v 2>/dev/null || freeradius -v 2>/dev/null');
+                    $version = \shell_exec(escapeshellarg($foundRadiusd) . ' -v 2>/dev/null');
                     if ($version) {
                         preg_match('/FreeRADIUS Version (\S+)/', $version, $m);
                         $result['version'] = $m[1] ?? trim(explode("\n", $version)[0]);
@@ -107,12 +127,22 @@ class RadiusConfigController extends Controller
         }
 
         try {
-            $whichCmd = $isWindows
-                ? 'where radclient.exe 2>NUL'
-                : 'which radclient 2>/dev/null';
-            $whichRadclient = trim((string) \shell_exec($whichCmd));
+            $foundRadclient = null;
+            foreach ($radclientPaths as $path) {
+                if (is_executable($path)) {
+                    $foundRadclient = $path;
+                    break;
+                }
+            }
 
-            if ($whichRadclient) {
+            if (!$foundRadclient) {
+                $whichCmd = $isWindows
+                    ? 'where radclient.exe 2>NUL'
+                    : 'which radclient 2>/dev/null';
+                $foundRadclient = trim((string) \shell_exec($whichCmd)) ?: null;
+            }
+
+            if ($foundRadclient) {
                 $result['binary_radclient'] = true;
             }
         } catch (\Throwable $e) {
